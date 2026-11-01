@@ -251,7 +251,7 @@ export function exportMasterHemodialisaWorkbook(params: ExportMasterSpreadsheetP
       r.dialiser || 'High Flux',
       r.heparinisasi || 'Standar',
       r.komplikasiIntraHd || 'Tidak ada',
-      r.tindakanAdvisDpjp || 'Hemodinamik stabil',
+      r.tindakanAdvisDpjp || 'Tidak ada',
       r.statusMesin || 'Siap Pakai',
       r.metodeDisinfeksi || 'Heat Clean',
       r.kondisiAirRo || 'Memenuhi Syarat',

@@ -21,6 +21,8 @@ export interface DownloadPdfOptions {
   isLandscape?: boolean;
   scale?: number;
   marginMm?: number;
+  targetWidthPx?: number;
+  fitToSinglePage?: boolean;
 }
 
 export function isRunningInIframe(): boolean {
@@ -130,10 +132,22 @@ export function printDocumentWithOrientation(
   });
 }
 
+interface SavedDomStyle {
+  el: HTMLElement;
+  width: string;
+  minWidth: string;
+  maxWidth: string;
+  overflow: string;
+  overflowX: string;
+  overflowY: string;
+  maxHeight: string;
+}
+
 /**
- * FUNGSI SIMPAN PDF: Langsung mendownload file .pdf ke perangkat pengguna
- * Memanfaatkan native browser rasterization html-to-image yang kompatibel penuh
- * dengan warna modern Tailwind CSS v4 (oklab, oklch) dan jsPDF.
+ * FUNGSI SIMPAN PDF: Langsung mendownload file .pdf ke perangkat pengguna.
+ * Menangani secara otomatis elemen bertabel lebar (misal 30 kolom pada Laporan Pasien HD),
+ * membuka scroll container yang terpotong secara virtual saat rendering sehingga seluruh
+ * kolom dari awal hingga akhir tercakup lengkap tanpa terpotong.
  */
 export async function downloadElementAsPdf(
   elementIdOrElement: string | HTMLElement,
@@ -145,7 +159,9 @@ export async function downloadElementAsPdf(
     filename = 'Dokumen_Hemodialisis',
     isLandscape = false,
     scale = 2,
-    marginMm = 4
+    marginMm = 4,
+    targetWidthPx,
+    fitToSinglePage = false
   } = options;
 
   const targetEl =
@@ -158,19 +174,101 @@ export async function downloadElementAsPdf(
     return false;
   }
 
-  // Preserve scroll & layout states
-  const prevOverflow = targetEl.style.overflow;
-  const prevMaxHeight = targetEl.style.maxHeight;
-  targetEl.style.overflow = 'visible';
-  targetEl.style.maxHeight = 'none';
+  // Detect tables and potential horizontal scroll overflow
+  const tables = Array.from(targetEl.querySelectorAll<HTMLTableElement>('table'));
+  const scrollContainers = Array.from(
+    targetEl.querySelectorAll<HTMLElement>(
+      '.overflow-x-auto, [class*="overflow-x-"], .overflow-auto'
+    )
+  );
+
+  let maxContentWidth = targetEl.scrollWidth;
+  tables.forEach((tbl) => {
+    maxContentWidth = Math.max(maxContentWidth, tbl.scrollWidth, tbl.offsetWidth);
+  });
+  scrollContainers.forEach((sc) => {
+    maxContentWidth = Math.max(maxContentWidth, sc.scrollWidth);
+  });
+
+  if (typeof targetWidthPx === 'number' && targetWidthPx > 0) {
+    maxContentWidth = Math.max(maxContentWidth, targetWidthPx);
+  }
+
+  // If this is a very wide table or explicitly requested width, expand all clipped containers
+  const isWideContent =
+    maxContentWidth > targetEl.clientWidth || (targetWidthPx && targetWidthPx > 0);
+
+  const savedStyles: SavedDomStyle[] = [];
+
+  const recordAndSetStyle = (
+    el: HTMLElement,
+    overrides: Partial<CSSStyleDeclaration>
+  ) => {
+    savedStyles.push({
+      el,
+      width: el.style.width,
+      minWidth: el.style.minWidth,
+      maxWidth: el.style.maxWidth,
+      overflow: el.style.overflow,
+      overflowX: el.style.overflowX,
+      overflowY: el.style.overflowY,
+      maxHeight: el.style.maxHeight
+    });
+    Object.assign(el.style, overrides);
+  };
 
   try {
+    document.body.classList.add('dialysis-pdf-exporting');
+    targetEl.classList.add('dialysis-pdf-exporting');
+
+    if (isWideContent) {
+      recordAndSetStyle(targetEl, {
+        width: `${maxContentWidth}px`,
+        minWidth: `${maxContentWidth}px`,
+        maxWidth: 'none',
+        overflow: 'visible',
+        maxHeight: 'none'
+      });
+
+      scrollContainers.forEach((sc) => {
+        recordAndSetStyle(sc, {
+          overflow: 'visible',
+          overflowX: 'visible',
+          width: '100%',
+          minWidth: `${maxContentWidth}px`,
+          maxWidth: 'none'
+        });
+      });
+
+      tables.forEach((tbl) => {
+        recordAndSetStyle(tbl, {
+          width: '100%',
+          minWidth: `${maxContentWidth}px`,
+          tableLayout: 'auto'
+        });
+      });
+    } else {
+      recordAndSetStyle(targetEl, {
+        overflow: 'visible',
+        maxHeight: 'none'
+      });
+    }
+
+    // Let the DOM reflow to layout all columns cleanly
+    await new Promise((r) => setTimeout(r, 60));
+
+    const exportWidth = targetEl.scrollWidth || maxContentWidth;
+    const exportHeight = targetEl.scrollHeight;
+
     // Generate high-resolution JPEG data URL via native SVG foreignObject
-    // skipFonts: true and fontEmbedCSS: '' prevent SecurityError when inspecting cross-origin stylesheets (e.g. Google Fonts)
     const dataUrl = await toJpeg(targetEl, {
-      quality: 0.95,
+      quality: 0.96,
       pixelRatio: Math.max(1.5, Math.min(scale, 2.5)),
       backgroundColor: '#ffffff',
+      width: exportWidth,
+      height: exportHeight,
+      canvasWidth: Math.round(exportWidth * Math.max(1.5, Math.min(scale, 2.5))),
+      canvasHeight: Math.round(exportHeight * Math.max(1.5, Math.min(scale, 2.5))),
       cacheBust: false,
       skipFonts: true,
       fontEmbedCSS: '',
@@ -188,10 +286,7 @@ export async function downloadElementAsPdf(
       }
     });
 
-    targetEl.style.overflow = prevOverflow;
-    targetEl.style.maxHeight = prevMaxHeight;
-
-    // Load into Image to extract natural dimensions
+    // Load into Image to extract actual rendered pixel dimensions
     const img = new Image();
     img.src = dataUrl;
     await new Promise<void>((resolve, reject) => {
@@ -212,40 +307,96 @@ export async function downloadElementAsPdf(
     const usableWidth = pageWidth - marginMm * 2;
     const usableHeight = pageHeight - marginMm * 2;
 
-    const imgWidth = usableWidth;
-    const imgHeight = (img.naturalHeight * imgWidth) / img.naturalWidth;
+    const naturalWidth = img.naturalWidth;
+    const naturalHeight = img.naturalHeight;
 
-    if (imgHeight <= usableHeight) {
-      // Single page document
-      pdf.addImage(dataUrl, 'JPEG', marginMm, marginMm, imgWidth, imgHeight, undefined, 'FAST');
+    // Height when scaled proportionally to fit usableWidth
+    const scaledHeight = (naturalHeight * usableWidth) / naturalWidth;
+
+    if (scaledHeight <= usableHeight) {
+      // Single page document: perfect fit
+      pdf.addImage(dataUrl, 'JPEG', marginMm, marginMm, usableWidth, scaledHeight, undefined, 'FAST');
+    } else if (fitToSinglePage || scaledHeight <= usableHeight * 1.15) {
+      // Proportional fit to single page for standard clinical tables
+      const fitScale = usableHeight / scaledHeight;
+      const fitWidth = usableWidth * fitScale;
+      const fitHeight = usableHeight;
+      const offsetX = marginMm + (usableWidth - fitWidth) / 2;
+      pdf.addImage(dataUrl, 'JPEG', offsetX, marginMm, fitWidth, fitHeight, undefined, 'FAST');
     } else {
-      // Multipage document with slice pagination
-      let heightLeft = imgHeight;
-      let position = marginMm;
+      // Clean canvas slice pagination without bleeding into page margins
+      const sliceHeightPx = Math.floor(naturalWidth * (usableHeight / usableWidth));
+      let remainingHeightPx = naturalHeight;
+      let sourceYPx = 0;
       let pageNum = 1;
 
-      while (heightLeft > 0) {
+      while (remainingHeightPx > 0) {
         if (pageNum > 1) {
           pdf.addPage('a4', orientation);
         }
-        pdf.addImage(dataUrl, 'JPEG', marginMm, position, imgWidth, imgHeight, undefined, 'FAST');
-        heightLeft -= usableHeight;
-        position -= usableHeight;
+
+        const currentSliceHeightPx = Math.min(remainingHeightPx, sliceHeightPx);
+        const sliceCanvas = document.createElement('canvas');
+        sliceCanvas.width = naturalWidth;
+        sliceCanvas.height = currentSliceHeightPx;
+        const ctx = sliceCanvas.getContext('2d');
+        if (ctx) {
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, naturalWidth, currentSliceHeightPx);
+          ctx.drawImage(
+            img,
+            0,
+            sourceYPx,
+            naturalWidth,
+            currentSliceHeightPx,
+            0,
+            0,
+            naturalWidth,
+            currentSliceHeightPx
+          );
+          const sliceDataUrl = sliceCanvas.toDataURL('image/jpeg', 0.96);
+          const renderedHeightMm = (currentSliceHeightPx * usableWidth) / naturalWidth;
+          pdf.addImage(
+            sliceDataUrl,
+            'JPEG',
+            marginMm,
+            marginMm,
+            usableWidth,
+            renderedHeightMm,
+            undefined,
+            'FAST'
+          );
+        }
+
+        sourceYPx += currentSliceHeightPx;
+        remainingHeightPx -= currentSliceHeightPx;
         pageNum++;
       }
     }
 
-    const cleanName = filename
-      .replace(/[\\/:*?"<>|]/g, '_')
-      .replace(/\s+/g, '_')
-      .replace(/\.pdf$/i, '') + '.pdf';
+    const cleanName =
+      filename
+        .replace(/[\\/:*?"<>|]/g, '_')
+        .replace(/\s+/g, '_')
+        .replace(/\.pdf$/i, '') + '.pdf';
 
     pdf.save(cleanName);
     return true;
   } catch (err) {
-    targetEl.style.overflow = prevOverflow;
-    targetEl.style.maxHeight = prevMaxHeight;
     console.error('[downloadElementAsPdf] PDF generation failed:', err);
     throw err;
+  } finally {
+    // Restore all original styles cleanly
+    savedStyles.forEach((s) => {
+      s.el.style.width = s.width;
+      s.el.style.minWidth = s.minWidth;
+      s.el.style.maxWidth = s.maxWidth;
+      s.el.style.overflow = s.overflow;
+      s.el.style.overflowX = s.overflowX;
+      s.el.style.overflowY = s.overflowY;
+      s.el.style.maxHeight = s.maxHeight;
+    });
+    document.body.classList.remove('dialysis-pdf-exporting');
+    targetEl.classList.remove('dialysis-pdf-exporting');
   }
 }

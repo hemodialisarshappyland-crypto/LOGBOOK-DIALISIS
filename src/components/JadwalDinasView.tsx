@@ -66,7 +66,8 @@ import {
   FileText,
   X,
   ArrowRight,
-  Upload
+  Upload,
+  Info
 } from 'lucide-react';
 import { ImportNurseScheduleSpreadsheetModal } from './ImportNurseScheduleSpreadsheetModal.tsx';
 
@@ -138,7 +139,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
     setMatrixTab(initialScheduleTab);
   }, [initialScheduleTab]);
 
-  // Supervisor-only optional daily sync view (hidden for Administrator so Administrator is 100% Monthly Matrix only)
+  // Supervisor-only optional daily sync view
   const [supervisorViewMode, setSupervisorViewMode] = useState<'matrix' | 'daily_sync'>('matrix');
   const [syncTargetDate, setSyncTargetDate] = useState<string>(activeReferenceIso);
 
@@ -153,7 +154,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
   const [nurseRoleFilter, setNurseRoleFilter] = useState<'all' | 'struktural' | 'pelaksana'>('all');
   const [doctorRoleFilter, setDoctorRoleFilter] = useState<'all' | 'dpjp' | 'dokter_jaga'>('all');
 
-  // Inline Feedback & Modals (Zero window.alert / window.confirm)
+  // Inline Feedback & Modals
   const [feedbackBanner, setFeedbackBanner] = useState<{
     tone: 'success' | 'info' | 'warning';
     text: string;
@@ -161,6 +162,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
   const [pendingConfirm, setPendingConfirm] = useState<PendingBatchConfirm | null>(null);
   const [detailModal, setDetailModal] = useState<CellDetailModalState | null>(null);
   const [isImportSpreadsheetOpen, setIsImportSpreadsheetOpen] = useState<boolean>(false);
+  const [isExportingPdf, setIsExportingPdf] = useState(false);
 
   useEffect(() => {
     const stopDrag = () => setIsDraggingPaint(false);
@@ -474,7 +476,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
     setDetailModal(null);
   };
 
-  // Batch Actions with Inline Confirmation
+  // Batch Actions with Confirmation
   const requestBatchAction = (action: PendingBatchConfirm['action']) => {
     const targetLabel = matrixTab === 'perawat' ? 'Perawat' : 'Dokter';
     const hasExisting =
@@ -626,8 +628,6 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
     printDocumentWithOrientation(true, docLabel, false);
   };
 
-  const [isExportingPdf, setIsExportingPdf] = useState(false);
-
   const handleDownloadPdf = async () => {
     const el = document.getElementById('printable-jadwal-sheet');
     if (!el) return;
@@ -704,42 +704,55 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
     [nurseSchedules, syncTargetDate]
   );
 
+  // Overall filled cells count & percentage for current tab
+  const filledCellsCount =
+    matrixTab === 'perawat' ? monthNurseSchedules.length : monthDoctorSchedules.length;
+  const totalCellsPossible =
+    (matrixTab === 'perawat' ? orderedActiveNurses.length : orderedActiveDoctors.length) *
+    monthDays.length;
+  const fillPercentage = totalCellsPossible > 0
+    ? Math.round((filledCellsCount / totalCellsPossible) * 100)
+    : 0;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-3.5">
       {/* ===================================================================== */}
       {/* SCREEN WORKSPACE (Hidden when printing A4 Landscape)                  */}
       {/* ===================================================================== */}
-      <div className="space-y-4 print:hidden">
-        {/* Top Administrator / Jadwal Dinas Matrix Header */}
-        <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-slate-900 text-white rounded-2xl p-4 sm:p-5 shadow-md border border-blue-900/60">
+      <div className="space-y-3.5 print:hidden">
+
+        {/* 1. COMPACT UNIFIED HEADER & ROSTER CONTROL BAR */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-4 sm:p-5 shadow-xs">
           <div className="flex flex-col xl:flex-row xl:items-center justify-between gap-4">
-            <div className="space-y-1">
-              <div className="text-[11px] font-semibold text-sky-300/90 tracking-wide">
-                {isAdmin
-                  ? 'Hak Akses Administrator · Format Matriks Bulanan Terpadu'
-                  : 'Manajemen Roster Bulanan · Instalasi Hemodialisa RS Happy Land'}
+            {/* Title & Facility Meta */}
+            <div className="flex items-start sm:items-center gap-3.5">
+              <div className="w-11 h-11 rounded-xl bg-blue-50 border border-blue-200 flex items-center justify-center text-blue-700 shrink-0 shadow-2xs">
+                <Calendar className="w-6 h-6" />
               </div>
-              <h2 className="text-lg sm:text-xl font-extrabold tracking-tight text-white flex items-center gap-2">
-                <Calendar className="w-5 h-5 text-sky-400 shrink-0" />
-                <span>
-                  Matriks Bulanan Jadwal Perawat &amp; Dokter ({monthName} {selectedYear})
-                </span>
-              </h2>
-              <p className="text-xs text-slate-300 max-w-3xl leading-relaxed">
-                {isAdmin
-                  ? 'Pengelolaan jadwal dinas perawat dan dokter ditampilkan penuh dalam tabel matriks 1 bulan (tanggal 1 s/d akhir bulan). Pilih kode shift lalu klik atau seret sel pada baris staf.'
-                  : 'Tabel matriks jadwal dinas bulanan seluruh perawat dan dokter ruangan hemodialisis.'}
-              </p>
+              <div>
+                <div className="flex flex-wrap items-center gap-2 text-[11px] font-semibold text-slate-500">
+                  <span>Instalasi Hemodialisa</span>
+                  <span aria-hidden="true">·</span>
+                  <span>RS Happy Land Medical Centre</span>
+                  <span aria-hidden="true">·</span>
+                  <span className="text-blue-700 font-bold">Standar PERNEFRI &amp; KARS</span>
+                </div>
+                <h2 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+                  <span>Matriks Jadwal Dinas</span>
+                  <span className="text-blue-700">· {monthName} {selectedYear}</span>
+                </h2>
+              </div>
             </div>
 
-            {/* Month/Year Navigator + Export & Print */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
-              <div className="inline-flex items-center bg-slate-800/90 border border-slate-700 rounded-xl p-1 gap-1">
+            {/* Actions & Calendar Month Navigator */}
+            <div className="flex flex-wrap items-center gap-2.5">
+              {/* Month/Year Stepper */}
+              <div className="inline-flex items-center bg-slate-100/90 border border-slate-200 rounded-xl p-1 gap-1">
                 <button
                   type="button"
                   onClick={handlePrevMonth}
                   title="Bulan Sebelumnya"
-                  className="p-1.5 rounded-lg text-slate-200 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer shrink-0"
+                  className="p-1.5 rounded-lg text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-2xs transition-all cursor-pointer shrink-0"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
@@ -751,7 +764,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                     setPendingConfirm(null);
                     setSelectedMonth(Number(e.target.value));
                   }}
-                  className="bg-slate-900 text-white text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-sky-500 cursor-pointer"
+                  className="bg-white text-slate-900 text-xs font-bold px-2.5 py-1.5 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-600 shadow-2xs cursor-pointer"
                 >
                   {INDONESIAN_MONTH_NAMES.map((mName, i) => (
                     <option key={mName} value={i + 1}>
@@ -767,7 +780,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                     setPendingConfirm(null);
                     setSelectedYear(Number(e.target.value));
                   }}
-                  className="bg-slate-900 text-white text-xs font-bold font-mono px-2 py-1.5 rounded-lg border border-slate-700 focus:outline-hidden focus:ring-2 focus:ring-sky-500 cursor-pointer tabular-nums"
+                  className="bg-white text-slate-900 text-xs font-bold font-mono px-2 py-1.5 rounded-lg border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-blue-600 shadow-2xs cursor-pointer tabular-nums"
                 >
                   {yearOptions.map((yr) => (
                     <option key={yr} value={yr}>
@@ -780,7 +793,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                   type="button"
                   onClick={handleNextMonth}
                   title="Bulan Berikutnya"
-                  className="p-1.5 rounded-lg text-slate-200 hover:bg-slate-700 hover:text-white transition-colors cursor-pointer shrink-0"
+                  className="p-1.5 rounded-lg text-slate-700 hover:bg-white hover:text-slate-900 hover:shadow-2xs transition-all cursor-pointer shrink-0"
                 >
                   <ChevronRight className="w-4 h-4" />
                 </button>
@@ -788,56 +801,60 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                 <button
                   type="button"
                   onClick={handleJumpCurrentMonth}
-                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-sky-300 hover:bg-slate-700/80 transition-colors cursor-pointer whitespace-nowrap shrink-0"
+                  className="px-2.5 py-1.5 rounded-lg text-[11px] font-bold text-blue-700 hover:bg-white hover:shadow-2xs transition-all cursor-pointer whitespace-nowrap shrink-0"
                 >
                   Bulan Ini
                 </button>
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsImportSpreadsheetOpen(true)}
-                className="px-3.5 py-2 bg-blue-600 hover:bg-blue-500 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
-                title="Impor jadwal dari file Excel (.xlsx / .csv) atau Copy-Paste persis sesuai format spreadsheet"
-              >
-                <Upload className="w-4 h-4 shrink-0" />
-                <span>Impor Spreadsheet (.xlsx / Paste)</span>
-              </button>
+              {/* Action Buttons */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <button
+                  type="button"
+                  onClick={() => setIsImportSpreadsheetOpen(true)}
+                  className="px-3 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+                  title="Impor jadwal dari file Excel (.xlsx / .csv) atau Copy-Paste format tabel"
+                >
+                  <Upload className="w-3.5 h-3.5 text-sky-400 shrink-0" />
+                  <span>Impor Spreadsheet</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={handleExportExcel}
-                className="px-3.5 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
-              >
-                <FileSpreadsheet className="w-4 h-4 shrink-0" />
-                <span>Unduh Excel (.xlsx)</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={handleExportExcel}
+                  className="px-3 py-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+                  title="Unduh format spreadsheet matriks bulanan"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5 shrink-0" />
+                  <span>Excel (.xlsx)</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={handlePrintLandscape}
-                className="px-3.5 py-2 bg-white/10 hover:bg-white/20 text-white border border-white/20 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
-                title="Buka dialog cetak browser langsung (A4 Landscape)"
-              >
-                <Printer className="w-4 h-4 shrink-0" />
-                <span>Cetak A4</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={handlePrintLandscape}
+                  className="px-3 py-2 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+                  title="Buka dialog cetak browser langsung (A4 Landscape)"
+                >
+                  <Printer className="w-3.5 h-3.5 text-slate-500 shrink-0" />
+                  <span>Cetak A4</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={handleDownloadPdf}
-                disabled={isExportingPdf}
-                className="px-3.5 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-xs"
-                title="Download file PDF jadwal dinas langsung"
-              >
-                <FileDown className="w-4 h-4 shrink-0" />
-                <span>{isExportingPdf ? 'Mengunduh...' : 'Simpan PDF'}</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={handleDownloadPdf}
+                  disabled={isExportingPdf}
+                  className="px-3 py-2 bg-rose-600 hover:bg-rose-700 disabled:opacity-50 text-white rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+                  title="Download file PDF jadwal dinas landscape"
+                >
+                  <FileDown className="w-3.5 h-3.5 shrink-0" />
+                  <span>{isExportingPdf ? 'Mengunduh...' : 'Simpan PDF'}</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Inline Feedback Banner */}
+        {/* 2. NOTIFICATIONS & CONFIRMATIONS */}
         {feedbackBanner && (
           <div
             className={`px-4 py-2.5 rounded-xl border text-xs font-semibold flex items-center justify-between gap-3 ${
@@ -867,9 +884,8 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
           </div>
         )}
 
-        {/* Inline Batch Action Confirmation Banner */}
         {pendingConfirm && (
-          <div className="bg-amber-50/95 border border-amber-300 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-2xs">
             <div className="space-y-0.5">
               <div className="text-xs font-extrabold text-amber-950 flex items-center gap-1.5">
                 <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
@@ -890,7 +906,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                 onClick={() =>
                   executeBatchAction(pendingConfirm.action, pendingConfirm.target)
                 }
-                className={`px-3.5 py-1.5 text-white rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`px-3.5 py-1.5 text-white rounded-lg text-xs font-bold cursor-pointer whitespace-nowrap shrink-0 shadow-2xs ${
                   pendingConfirm.action === 'clear_month'
                     ? 'bg-rose-600 hover:bg-rose-700'
                     : 'bg-blue-700 hover:bg-blue-800'
@@ -902,8 +918,9 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
           </div>
         )}
 
-        {/* Primary Matrix Switcher: Matriks Perawat vs Matriks Dokter (+ Optional Supervisor Daily Sync) */}
-        <div className="bg-white rounded-2xl border border-slate-200/90 p-3 shadow-2xs flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+        {/* 3. TAB CONTROLS & KPI SUMMARY STRIP */}
+        <div className="bg-white rounded-2xl border border-slate-200/90 p-3.5 shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+          {/* Tabs: Perawat vs Dokter (+ Optional Daily Sync) */}
           <div className="flex flex-wrap items-center gap-2">
             <div className="inline-flex items-center bg-slate-100 p-1 rounded-xl">
               <button
@@ -913,14 +930,14 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                   setSupervisorViewMode('matrix');
                   setPendingConfirm(null);
                 }}
-                className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 tabular-nums ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 tabular-nums ${
                   supervisorViewMode === 'matrix' && matrixTab === 'perawat'
-                    ? 'bg-blue-700 text-white shadow-xs'
-                    : 'text-slate-700 hover:text-slate-950'
+                    ? 'bg-white text-blue-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <UserCheck className="w-4 h-4 shrink-0" />
-                <span>Matriks Bulanan Perawat ({orderedActiveNurses.length})</span>
+                <UserCheck className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Matriks Perawat ({orderedActiveNurses.length})</span>
               </button>
 
               <button
@@ -930,27 +947,26 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                   setSupervisorViewMode('matrix');
                   setPendingConfirm(null);
                 }}
-                className={`px-4 py-2 rounded-lg text-xs font-extrabold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 tabular-nums ${
+                className={`px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 tabular-nums ${
                   supervisorViewMode === 'matrix' && matrixTab === 'dokter'
-                    ? 'bg-blue-700 text-white shadow-xs'
-                    : 'text-slate-700 hover:text-slate-950'
+                    ? 'bg-white text-blue-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                <Stethoscope className="w-4 h-4 shrink-0" />
-                <span>Matriks Bulanan Dokter ({orderedActiveDoctors.length})</span>
+                <Stethoscope className="w-4 h-4 text-emerald-600 shrink-0" />
+                <span>Matriks Dokter ({orderedActiveDoctors.length})</span>
               </button>
             </div>
 
-            {/* Only non-administrator supervisors see Daily Sync option; Administrator is purely Monthly Matrix */}
             {!isAdmin && (
               <button
                 type="button"
                 onClick={() =>
                   setSupervisorViewMode((m) => (m === 'matrix' ? 'daily_sync' : 'matrix'))
                 }
-                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
+                className={`px-3.5 py-2 rounded-xl text-xs font-bold border transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 ${
                   supervisorViewMode === 'daily_sync'
-                    ? 'bg-slate-900 text-white border-slate-900'
+                    ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
                     : 'bg-white text-slate-700 border-slate-200 hover:bg-slate-50'
                 }`}
               >
@@ -960,99 +976,94 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
             )}
           </div>
 
-          {/* Unboxed Monthly Summary Metrics */}
-          <div className="text-xs text-slate-600 font-medium tabular-nums flex flex-wrap items-center gap-x-3 gap-y-1">
+          {/* Clean Metric Badges */}
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-slate-600 tabular-nums">
             <span>
-              Periode: <strong className="text-slate-900">{monthName} {selectedYear}</strong> ({monthDays.length} Hari)
+              Hari Kalender: <strong className="text-slate-900 font-extrabold">{monthDays.length} Hari</strong>
             </span>
-            <span className="text-slate-300">&middot;</span>
-            {matrixTab === 'perawat' ? (
-              <span>
-                Sel Terisi:{' '}
-                <strong className="text-blue-800">{monthNurseSchedules.length}</strong> /{' '}
-                {orderedActiveNurses.length * monthDays.length}
-              </span>
-            ) : (
-              <span>
-                Sel Terisi:{' '}
-                <strong className="text-blue-800">{monthDoctorSchedules.length}</strong> /{' '}
-                {orderedActiveDoctors.length * monthDays.length}
-              </span>
-            )}
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <span>
+              Kelengkapan Sel: <strong className="text-blue-700 font-extrabold">{filledCellsCount}</strong> / {totalCellsPossible} ({fillPercentage}%)
+            </span>
+            <span aria-hidden="true" className="text-slate-300">·</span>
+            <span>
+              Format: <span className="font-semibold text-slate-800">Rotasi 2 Shift (P/S) + Cito On-Call</span>
+            </span>
           </div>
         </div>
 
-        {/* ================================================================= */}
-        {/* SUPERVISOR DAILY SYNC PANEL (Non-Admin Only when toggled)         */}
-        {/* ================================================================= */}
+        {/* 4. SUPERVISOR DAILY SYNC PANEL (When Toggled) */}
         {!isAdmin && supervisorViewMode === 'daily_sync' && (
-          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-2xs space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-200 p-5 shadow-xs space-y-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 pb-3">
               <div>
                 <h3 className="text-sm font-extrabold text-slate-900">
                   Sinkronisasi Jadwal Matriks ke Laporan Harian PJ Shift
                 </h3>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Pilih tanggal untuk menarik nama PJ Shift, jumlah perawat dinas, DPJP, dan Dokter Jaga dari matriks bulanan ke Laporan Harian.
+                  Tarik penugasan dinas, nama PJ Shift, dokter DPJP, dan dokter jaga dari matriks bulanan ke Laporan Harian unit.
                 </p>
               </div>
               <input
                 type="date"
                 value={syncTargetDate}
-                onChange={(e) => e.target.value && setSyncTargetDate(e.target.value)}
-                className="px-3 py-1.5 bg-slate-50 border border-slate-300 rounded-xl text-xs font-bold font-mono text-slate-800"
+                onChange={(e) => setSyncTargetDate(e.target.value)}
+                className="px-3 py-1.5 text-xs font-semibold border border-slate-300 rounded-lg text-slate-900 bg-white"
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 tabular-nums">
-              <div className="rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="text-xs font-extrabold text-slate-900">Shift Pagi (07.00 - 14.00)</div>
-                  <div className="text-xs text-slate-600">
-                    PJ Shift: <strong className="text-slate-900">{syncDatePagiStaffing.pjName}</strong> &middot;{' '}
-                    Total Dinas: <strong className="text-blue-700">{syncDatePagiStaffing.totalDinas} Perawat</strong>
-                  </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 bg-sky-50/60 border border-sky-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-sky-950">Shift Pagi (07.00 - 14.00 WIB)</span>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyDailyShiftSync('Pagi')}
+                    className="px-3 py-1 bg-sky-700 hover:bg-sky-800 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                  >
+                    Terapkan Shift Pagi
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleApplyDailyShiftSync('Pagi')}
-                  className="px-3.5 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  Terapkan Shift Pagi
-                </button>
+                <div className="text-xs text-slate-700">
+                  PJ Shift: <strong>{syncDatePagiStaffing.pjName}</strong> · Total Perawat: <strong>{syncDatePagiStaffing.totalDinas}</strong>
+                </div>
+                <div className="text-[11px] text-slate-500 truncate">
+                  Perawat: {syncDatePagiStaffing.detailText || '-'}
+                </div>
               </div>
 
-              <div className="rounded-xl border border-slate-200 p-4 flex items-center justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="text-xs font-extrabold text-slate-900">Shift Siang (14.00 - 21.00)</div>
-                  <div className="text-xs text-slate-600">
-                    PJ Shift: <strong className="text-slate-900">{syncDateSiangStaffing.pjName}</strong> &middot;{' '}
-                    Total Dinas: <strong className="text-amber-700">{syncDateSiangStaffing.totalDinas} Perawat</strong>
-                  </div>
+              <div className="p-4 bg-amber-50/60 border border-amber-200 rounded-xl space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-extrabold text-amber-950">Shift Siang (14.00 - 21.00 WIB)</span>
+                  <button
+                    type="button"
+                    onClick={() => handleApplyDailyShiftSync('Siang')}
+                    className="px-3 py-1 bg-amber-600 hover:bg-amber-700 text-white rounded-lg text-[11px] font-bold cursor-pointer"
+                  >
+                    Terapkan Shift Siang
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  onClick={() => handleApplyDailyShiftSync('Siang')}
-                  className="px-3.5 py-2 bg-amber-600 hover:bg-amber-700 text-white rounded-xl text-xs font-bold cursor-pointer whitespace-nowrap shrink-0"
-                >
-                  Terapkan Shift Siang
-                </button>
+                <div className="text-xs text-slate-700">
+                  PJ Shift: <strong>{syncDateSiangStaffing.pjName}</strong> · Total Perawat: <strong>{syncDateSiangStaffing.totalDinas}</strong>
+                </div>
+                <div className="text-[11px] text-slate-500 truncate">
+                  Perawat: {syncDateSiangStaffing.detailText || '-'}
+                </div>
               </div>
             </div>
           </div>
         )}
 
-        {/* ================================================================= */}
-        {/* MONTHLY MATRIX WORKSPACE (Always shown for Administrator)         */}
-        {/* ================================================================= */}
-        {(isAdmin || supervisorViewMode === 'matrix') && (
-          <div className="bg-white rounded-2xl border border-slate-200/95 shadow-xs overflow-hidden">
-            {/* Matrix Toolbar: Brush Palette + Filters + Batch Month Tools */}
-            <div className="p-3.5 sm:p-4 bg-slate-50/80 border-b border-slate-200 space-y-3">
-              {/* Row 1: Search, Role Filter & Month Batch Operations */}
+        {/* 5. MAIN MATRIX WORKSPACE: TOOLBAR + FULL MATRIX TABLE */}
+        {supervisorViewMode === 'matrix' && (
+          <div className="bg-white rounded-2xl border border-slate-200/90 shadow-xs overflow-hidden">
+            {/* Toolbar: Search + Role Filter + Batch Operations + Brush Palettes */}
+            <div className="p-3.5 bg-slate-50/90 border-b border-slate-200 space-y-3">
+              {/* Row 1: Search, Filter, and Month Batch Actions */}
               <div className="flex flex-col xl:flex-row items-stretch xl:items-center justify-between gap-2.5">
                 <div className="flex flex-wrap items-center gap-2 flex-1">
-                  <div className="relative min-w-[220px] flex-1 max-w-xs">
+                  {/* Search Input */}
+                  <div className="relative min-w-[210px] flex-1 max-w-xs">
                     <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
                     <input
                       type="text"
@@ -1063,16 +1074,26 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                           ? 'Cari nama perawat atau NIP...'
                           : 'Cari nama dokter, spesialisasi, SIP...'
                       }
-                      className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 focus:outline-hidden focus:ring-2 focus:ring-blue-600"
+                      className="w-full pl-8 pr-3 py-1.5 bg-white border border-slate-300 rounded-xl text-xs font-medium text-slate-800 placeholder:text-slate-400 focus:outline-hidden focus:ring-2 focus:ring-blue-600"
                     />
+                    {staffSearch && (
+                      <button
+                        type="button"
+                        onClick={() => setStaffSearch('')}
+                        className="absolute right-2.5 top-2 text-slate-400 hover:text-slate-600"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
+                  {/* Segmented Role Filter */}
                   {matrixTab === 'perawat' ? (
-                    <div className="inline-flex items-center bg-slate-200/75 p-0.5 rounded-xl text-[11px] font-bold">
+                    <div className="inline-flex items-center bg-slate-200/80 p-0.5 rounded-xl text-[11px] font-bold">
                       <button
                         type="button"
                         onClick={() => setNurseRoleFilter('all')}
-                        className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                           nurseRoleFilter === 'all'
                             ? 'bg-white text-slate-900 shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
@@ -1083,9 +1104,9 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setNurseRoleFilter('struktural')}
-                        className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                           nurseRoleFilter === 'struktural'
-                            ? 'bg-white text-blue-800 shadow-2xs'
+                            ? 'bg-white text-blue-900 shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
@@ -1094,7 +1115,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setNurseRoleFilter('pelaksana')}
-                        className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                           nurseRoleFilter === 'pelaksana'
                             ? 'bg-white text-slate-900 shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
@@ -1104,11 +1125,11 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                       </button>
                     </div>
                   ) : (
-                    <div className="inline-flex items-center bg-slate-200/75 p-0.5 rounded-xl text-[11px] font-bold">
+                    <div className="inline-flex items-center bg-slate-200/80 p-0.5 rounded-xl text-[11px] font-bold">
                       <button
                         type="button"
                         onClick={() => setDoctorRoleFilter('all')}
-                        className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                           doctorRoleFilter === 'all'
                             ? 'bg-white text-slate-900 shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
@@ -1119,9 +1140,9 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setDoctorRoleFilter('dpjp')}
-                        className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                           doctorRoleFilter === 'dpjp'
-                            ? 'bg-white text-blue-800 shadow-2xs'
+                            ? 'bg-white text-blue-900 shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
@@ -1130,202 +1151,191 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                       <button
                         type="button"
                         onClick={() => setDoctorRoleFilter('dokter_jaga')}
-                        className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
+                        className={`px-3 py-1 rounded-lg transition-colors cursor-pointer whitespace-nowrap ${
                           doctorRoleFilter === 'dokter_jaga'
-                            ? 'bg-white text-emerald-800 shadow-2xs'
+                            ? 'bg-white text-emerald-900 shadow-2xs'
                             : 'text-slate-600 hover:text-slate-900'
                         }`}
                       >
-                        Dokter Jaga Ruangan
+                        Dokter Jaga
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Month Batch Buttons (Editable Roles Only) */}
+                {/* Batch Action Buttons (for Editors) */}
                 {canEditMatrix && (
-                  <div className="flex flex-wrap items-center gap-2">
-                    {matrixTab === 'perawat' && (
-                      <button
-                        type="button"
-                        onClick={() => setIsImportSpreadsheetOpen(true)}
-                        className="px-3 py-1.5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-300 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
-                        title="Impor tabel spreadsheet sesuai format gambar lampiran (P, S, L, C)"
-                      >
-                        <FileSpreadsheet className="w-3.5 h-3.5 text-emerald-700 shrink-0" />
-                        <span>Impor Format Spreadsheet</span>
-                      </button>
-                    )}
-
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => requestBatchAction('fill_standard')}
-                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                      className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-800 border border-blue-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+                      title="Isi matriks dengan rotasi dinas standar PERNEFRI"
                     >
-                      <RefreshCw className="w-3.5 h-3.5 shrink-0" />
-                      <span>Isi Pola Standar Bulan Ini</span>
+                      <RefreshCw className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+                      <span>Isi Pola Standar</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => requestBatchAction('copy_prev')}
-                      className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                      className="px-3 py-1.5 bg-white hover:bg-slate-100 text-slate-700 border border-slate-300 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+                      title="Salin penugasan dari bulan sebelumnya"
                     >
-                      <Copy className="w-3.5 h-3.5 shrink-0" />
+                      <Copy className="w-3.5 h-3.5 text-slate-500 shrink-0" />
                       <span>Salin Bulan Lalu</span>
                     </button>
 
                     <button
                       type="button"
                       onClick={() => requestBatchAction('clear_month')}
-                      className="px-3 py-1.5 bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-300 hover:border-rose-200 rounded-xl text-xs font-bold transition-colors flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0"
+                      className="px-3 py-1.5 bg-white hover:bg-rose-50 text-slate-600 hover:text-rose-700 border border-slate-300 hover:border-rose-200 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer whitespace-nowrap shrink-0 shadow-2xs"
+                      title="Kosongkan jadwal bulan ini"
                     >
-                      <Trash2 className="w-3.5 h-3.5 shrink-0" />
+                      <Trash2 className="w-3.5 h-3.5 text-rose-500 shrink-0" />
                       <span>Kosongkan Bulan</span>
                     </button>
                   </div>
                 )}
               </div>
 
-              {/* Row 2: Interactive Shift Brush / Click Mode Selector */}
+              {/* Row 2: Interaction Mode & Brush Palette */}
               {canEditMatrix && (
-                <div className="pt-2 border-t border-slate-200/80 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
-                  <div className="flex flex-wrap items-center gap-1.5">
-                    <span className="text-[11px] font-bold text-slate-600 mr-1">
-                      Mode Klik Sel:
+                <div className="pt-2 border-t border-slate-200 flex flex-col lg:flex-row lg:items-center justify-between gap-2.5">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[11px] font-bold text-slate-600 mr-0.5">
+                      Mode Interaksi:
                     </span>
 
-                    <div className="inline-flex items-center bg-slate-200/80 p-0.5 rounded-xl text-[11px] font-bold mr-1.5">
+                    {/* Mode Selector */}
+                    <div className="inline-flex items-center bg-slate-200/80 p-0.5 rounded-xl text-[11px] font-bold mr-1">
                       <button
                         type="button"
                         onClick={() => setInteractionMode('brush')}
-                        className={`px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                        className={`px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors ${
                           interactionMode === 'brush'
                             ? 'bg-slate-900 text-white shadow-2xs'
                             : 'text-slate-700 hover:text-slate-900'
                         }`}
                       >
                         <Paintbrush className="w-3 h-3 shrink-0" />
-                        <span>Kuas Shift (Klik / Seret)</span>
+                        <span>Kuas Shift</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setInteractionMode('cycle')}
-                        className={`px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                        className={`px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors ${
                           interactionMode === 'cycle'
                             ? 'bg-slate-900 text-white shadow-2xs'
                             : 'text-slate-700 hover:text-slate-900'
                         }`}
                       >
                         <MousePointerClick className="w-3 h-3 shrink-0" />
-                        <span>Klik Putar Kode</span>
+                        <span>Putar Kode</span>
                       </button>
                       <button
                         type="button"
                         onClick={() => setInteractionMode('detail')}
-                        className={`px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer whitespace-nowrap ${
+                        className={`px-2.5 py-1 rounded-lg flex items-center gap-1 cursor-pointer whitespace-nowrap transition-colors ${
                           interactionMode === 'detail'
                             ? 'bg-slate-900 text-white shadow-2xs'
                             : 'text-slate-700 hover:text-slate-900'
                         }`}
                       >
                         <FileText className="w-3 h-3 shrink-0" />
-                        <span>Edit Catatan Sel</span>
+                        <span>Catatan Sel</span>
                       </button>
                     </div>
 
-                    {/* Shift Code Brush Buttons */}
-                    {interactionMode === 'brush' &&
-                      (matrixTab === 'perawat'
-                        ? NURSE_MATRIX_PALETTE.map((item) => {
-                            const selected = activeNurseBrush === item.code;
+                    {/* Brush Buttons */}
+                    {interactionMode === 'brush' && (
+                      <div className="flex flex-wrap items-center gap-1">
+                        {(matrixTab === 'perawat' ? NURSE_MATRIX_PALETTE : DOCTOR_MATRIX_PALETTE).map(
+                          (item) => {
+                            const isSelected =
+                              matrixTab === 'perawat'
+                                ? activeNurseBrush === item.code
+                                : activeDoctorBrush === item.code;
                             return (
                               <button
                                 key={item.code}
                                 type="button"
-                                onClick={() => setActiveNurseBrush(item.code)}
+                                onClick={() => {
+                                  if (matrixTab === 'perawat') {
+                                    setActiveNurseBrush(item.code as NurseMatrixCode);
+                                  } else {
+                                    setActiveDoctorBrush(item.code as DoctorMatrixCode);
+                                  }
+                                }}
                                 title={`${item.label} (${item.shortDesc})`}
-                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 tabular-nums ${
-                                  selected
+                                className={`px-2 py-1 rounded-lg border text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1 whitespace-nowrap shrink-0 tabular-nums ${
+                                  isSelected
                                     ? `${item.brushClass} ring-2 ring-offset-1 ring-slate-900/30 shadow-2xs`
                                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
                                 }`}
                               >
                                 <span className="font-mono font-extrabold">{item.code}</span>
-                                <span className="hidden sm:inline font-semibold opacity-95">
+                                <span className="hidden sm:inline font-medium opacity-90">
                                   {item.label}
                                 </span>
                               </button>
                             );
-                          })
-                        : DOCTOR_MATRIX_PALETTE.map((item) => {
-                            const selected = activeDoctorBrush === item.code;
-                            return (
-                              <button
-                                key={item.code}
-                                type="button"
-                                onClick={() => setActiveDoctorBrush(item.code)}
-                                title={`${item.label} (${item.shortDesc})`}
-                                className={`px-2.5 py-1 rounded-lg border text-[11px] font-bold transition-all cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 tabular-nums ${
-                                  selected
-                                    ? `${item.brushClass} ring-2 ring-offset-1 ring-slate-900/30 shadow-2xs`
-                                    : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-100'
-                                }`}
-                              >
-                                <span className="font-mono font-extrabold">{item.code}</span>
-                                <span className="hidden sm:inline font-semibold opacity-95">
-                                  {item.label}
-                                </span>
-                              </button>
-                            );
-                          }))}
+                          }
+                        )}
+                      </div>
+                    )}
                   </div>
 
-                  <div className="text-[11px] text-slate-500 shrink-0">
-                    Tip: Klik kanan sel mana saja untuk mengisi catatan khusus.
+                  <div className="text-[11px] text-slate-500 flex items-center gap-1.5 shrink-0">
+                    <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                    <span>Klik atau seret untuk mewarnai shift. Klik kanan untuk catatan khusus.</span>
                   </div>
                 </div>
               )}
             </div>
 
             {/* =============================================================== */}
-            {/* 1. MATRIKS BULANAN PERAWAT GRID                                 */}
+            {/* 5A. MATRIKS PERAWAT TABLE                                       */}
             {/* =============================================================== */}
             {matrixTab === 'perawat' ? (
               <div
-                className="overflow-x-auto select-none"
+                className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-250px)] select-none scrollbar-thin"
                 onMouseLeave={() => setIsDraggingPaint(false)}
               >
                 <table className="w-full border-collapse text-[11px] tabular-nums">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                      <th className="sticky left-0 z-20 bg-slate-100 p-2 w-9 min-w-[36px] text-center font-extrabold border-r border-slate-200">
+                  <thead className="sticky top-0 z-30 bg-slate-100 text-slate-700 shadow-xs">
+                    <tr className="border-b border-slate-300">
+                      {/* Sticky Col 1: No (Width = 44px / w-11) */}
+                      <th className="sticky left-0 z-30 bg-slate-100 p-2 w-11 min-w-[44px] max-w-[44px] text-center font-extrabold border-r border-slate-300">
                         No
                       </th>
-                      <th className="sticky left-9 z-20 bg-slate-100 px-3 py-2 min-w-[210px] max-w-[230px] text-left font-extrabold border-r border-slate-300 shadow-[2px_0_4px_-2px_rgba(15,23,42,0.12)]">
+                      {/* Sticky Col 2: Nama Perawat & Jabatan (Left = 44px / left-11, Width = 220px / w-56) */}
+                      <th className="sticky left-11 z-30 bg-slate-100 px-3 py-2 w-56 min-w-[220px] max-w-[220px] text-left font-extrabold border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">
                         Nama Perawat &amp; Jabatan
                       </th>
+
+                      {/* Day Columns (1..31) */}
                       {monthDays.map((d) => {
                         const isToday = d.isoDate === activeReferenceIso;
                         return (
                           <th
                             key={d.isoDate}
-                            className={`px-0.5 py-1.5 min-w-[36px] w-[36px] text-center border-r border-slate-200/90 ${
+                            className={`px-0.5 py-1.5 min-w-[36px] w-[36px] max-w-[36px] text-center border-r border-slate-200/90 ${
                               isToday
-                                ? 'bg-blue-100/90 text-blue-950'
+                                ? 'bg-sky-100 text-sky-950 font-black ring-1 ring-inset ring-sky-300'
                                 : d.isSunday
                                 ? 'bg-rose-50/90 text-rose-700'
                                 : 'bg-slate-100 text-slate-700'
                             }`}
                             title={formatIsoDateToIndonesianFull(d.isoDate)}
                           >
-                            <div className="font-mono font-extrabold text-[11px] leading-tight">
+                            <div className="font-mono font-extrabold text-[11.5px] leading-tight">
                               {String(d.day).padStart(2, '0')}
                             </div>
                             <div
-                              className={`text-[9.5px] font-bold leading-tight ${
+                              className={`text-[9px] font-bold leading-tight ${
                                 isToday
-                                  ? 'text-blue-800'
+                                  ? 'text-sky-800'
                                   : d.isSunday
                                   ? 'text-rose-600'
                                   : 'text-slate-500'
@@ -1336,39 +1346,40 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                           </th>
                         );
                       })}
-                      {/* Individual Monthly Summary Columns */}
+
+                      {/* Summary Columns (Rekapitulasi) */}
                       <th
-                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-sky-50/90 text-sky-900 border-l border-r border-slate-200"
+                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-sky-50 text-sky-900 border-l border-r border-slate-200"
                         title="Total Dinas Pagi (termasuk PJ Pagi)"
                       >
                         P
                       </th>
                       <th
-                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-amber-50/90 text-amber-900 border-r border-slate-200"
+                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-amber-50 text-amber-900 border-r border-slate-200"
                         title="Total Dinas Siang (termasuk PJ Siang)"
                       >
                         S
                       </th>
                       <th
-                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-blue-50/90 text-blue-900 border-r border-slate-200"
+                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-blue-50 text-blue-900 border-r border-slate-200"
                         title="Total Penugasan sebagai PJ Shift"
                       >
                         PJ
                       </th>
                       <th
-                        className="px-1.5 py-2 min-w-[38px] text-center font-extrabold bg-teal-50/90 text-teal-900 border-r border-slate-200"
+                        className="px-1.5 py-2 min-w-[36px] text-center font-extrabold bg-teal-50 text-teal-900 border-r border-slate-200"
                         title="Total On-Call Cito / Malam"
                       >
                         OC
                       </th>
                       <th
-                        className="px-1.5 py-2 min-w-[38px] text-center font-extrabold bg-slate-100 text-slate-600 border-r border-slate-200"
+                        className="px-1.5 py-2 min-w-[36px] text-center font-extrabold bg-slate-100 text-slate-600 border-r border-slate-200"
                         title="Total Libur & Cuti"
                       >
                         L/CT
                       </th>
                       <th
-                        className="px-2 py-2 min-w-[44px] text-center font-extrabold bg-slate-200/80 text-slate-900"
+                        className="px-2 py-2 min-w-[42px] text-center font-extrabold bg-slate-200/90 text-slate-900"
                         title="Total Hari Dinas Aktif Bulan Ini"
                       >
                         &Sigma;
@@ -1381,9 +1392,9 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                       <tr>
                         <td
                           colSpan={monthDays.length + 8}
-                          className="p-8 text-center text-xs text-slate-500"
+                          className="p-10 text-center text-xs text-slate-500"
                         >
-                          Tidak ada staf perawat yang sesuai dengan pencarian.
+                          Tidak ada staf perawat yang cocok dengan filter atau pencarian.
                         </td>
                       </tr>
                     ) : (
@@ -1401,38 +1412,42 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                             : 'Pelaksana';
                         const roleTone =
                           nurse.role === 'kepala_ruangan'
-                            ? 'text-indigo-700'
+                            ? 'text-indigo-700 bg-indigo-50 border-indigo-200'
                             : nurse.role === 'pj_shift'
-                            ? 'text-blue-700'
-                            : 'text-slate-500';
-                        const rowBg = idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white';
+                            ? 'text-blue-700 bg-blue-50 border-blue-200'
+                            : 'text-slate-600 bg-slate-100 border-slate-200';
+                        const rowBg = idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white';
                         const stickyBg = idx % 2 === 1 ? 'bg-slate-50' : 'bg-white';
 
                         return (
-                          <tr key={nurse.id} className={`${rowBg} hover:bg-blue-50/25`}>
+                          <tr key={nurse.id} className={`${rowBg} hover:bg-blue-50/30 transition-colors`}>
+                            {/* Sticky Col 1: No */}
                             <td
-                              className={`sticky left-0 z-10 ${stickyBg} p-1.5 text-center font-mono font-bold text-slate-400 border-r border-slate-200`}
+                              className={`sticky left-0 z-20 ${stickyBg} p-1.5 text-center font-mono font-bold text-slate-400 border-r border-slate-300`}
                             >
                               {idx + 1}
                             </td>
 
+                            {/* Sticky Col 2: Nama & Role */}
                             <td
-                              className={`sticky left-9 z-10 ${stickyBg} px-3 py-1.5 border-r border-slate-300 shadow-[2px_0_4px_-2px_rgba(15,23,42,0.08)]`}
+                              className={`sticky left-11 z-20 ${stickyBg} px-3 py-1.5 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)]`}
                             >
-                              <div className="font-bold text-[11.5px] text-slate-900 truncate max-w-[200px]">
+                              <div className="font-extrabold text-[11.5px] text-slate-900 truncate max-w-[210px]">
                                 {nurse.name}
                               </div>
-                              <div className="text-[10px] flex items-center gap-1.5 truncate">
-                                <span className={`font-bold ${roleTone}`}>{roleShort}</span>
+                              <div className="text-[10px] flex items-center gap-1.5 truncate mt-0.5">
+                                <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold border ${roleTone}`}>
+                                  {roleShort}
+                                </span>
                                 {nurse.nip && (
-                                  <>
-                                    <span className="text-slate-300">&middot;</span>
-                                    <span className="font-mono text-slate-400">{nurse.nip}</span>
-                                  </>
+                                  <span className="font-mono text-slate-400 text-[9.5px]">
+                                    {nurse.nip}
+                                  </span>
                                 )}
                               </div>
                             </td>
 
+                            {/* Daily Cells */}
                             {monthDays.map((calDay) => {
                               const entry = getNurseEntry(nurse, calDay.isoDate);
                               const code = entryToNurseMatrixCode(entry);
@@ -1445,7 +1460,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                                   key={calDay.isoDate}
                                   className={`p-0.5 text-center border-r border-slate-200/80 ${
                                     calDay.isoDate === activeReferenceIso
-                                      ? 'bg-blue-50/50'
+                                      ? 'bg-sky-50/50'
                                       : calDay.isSunday
                                       ? 'bg-rose-50/35'
                                       : ''
@@ -1484,20 +1499,24 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                                     title={`${nurse.name} · ${calDay.dayFull}, ${dayLabel} · ${meta.label}${
                                       entry?.notes ? ` (${entry.notes})` : ''
                                     }`}
-                                    className={`relative w-full h-7 rounded-md border font-mono text-[10px] font-bold flex items-center justify-center transition-colors ${
+                                    className={`relative w-full h-8 rounded border font-mono text-[10.5px] font-bold flex items-center justify-center transition-all ${
                                       meta.cellClass
-                                    } ${canEditMatrix ? 'cursor-pointer' : 'cursor-default'}`}
+                                    } ${
+                                      canEditMatrix
+                                        ? 'cursor-pointer hover:scale-[1.04] active:scale-95'
+                                        : 'cursor-default'
+                                    }`}
                                   >
                                     <span>{code === '-' ? '·' : code}</span>
                                     {hasCustomNote && (
-                                      <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-current opacity-65" />
+                                      <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-600 ring-1 ring-white" />
                                     )}
                                   </button>
                                 </td>
                               );
                             })}
 
-                            {/* Recap Cells */}
+                            {/* Monthly Totals for this nurse */}
                             <td className="px-1 py-1.5 text-center font-mono font-bold text-sky-800 bg-sky-50/40 border-l border-r border-slate-200">
                               {stat.pagiCount}
                             </td>
@@ -1513,7 +1532,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                             <td className="px-1 py-1.5 text-center font-mono text-slate-500 bg-slate-50/60 border-r border-slate-200">
                               {stat.liburOrCutiCount}
                             </td>
-                            <td className="px-1.5 py-1.5 text-center font-mono font-extrabold text-slate-900 bg-slate-100/80">
+                            <td className="px-1.5 py-1.5 text-center font-mono font-extrabold text-slate-900 bg-slate-100/90">
                               {stat.activeWorkDays}
                             </td>
                           </tr>
@@ -1523,11 +1542,11 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                   </tbody>
 
                   {/* Daily Staffing Recap Footer */}
-                  <tfoot className="border-t-2 border-slate-300 bg-slate-50 text-[10.5px] font-mono">
+                  <tfoot className="border-t-2 border-slate-300 bg-slate-100 text-[10.5px] font-mono sticky bottom-0 z-20">
                     <tr className="border-b border-slate-200">
                       <td
                         colSpan={2}
-                        className="sticky left-0 z-10 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-700 border-r border-slate-300"
+                        className="sticky left-0 z-30 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-800 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)]"
                       >
                         &Sigma; Perawat Dinas Pagi
                       </td>
@@ -1538,8 +1557,8 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                             t.isSunday
                               ? 'text-slate-400 bg-rose-50/40'
                               : t.pagi >= 5
-                              ? 'text-sky-800 bg-sky-50/50'
-                              : 'text-amber-700 bg-amber-50/60'
+                              ? 'text-sky-900 bg-sky-50 font-black'
+                              : 'text-amber-700 bg-amber-50'
                           }`}
                         >
                           {t.pagi}
@@ -1551,7 +1570,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                     <tr className="border-b border-slate-200">
                       <td
                         colSpan={2}
-                        className="sticky left-0 z-10 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-700 border-r border-slate-300"
+                        className="sticky left-0 z-30 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-800 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)]"
                       >
                         &Sigma; Perawat Dinas Siang
                       </td>
@@ -1562,8 +1581,8 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                             t.isSunday
                               ? 'text-slate-400 bg-rose-50/40'
                               : t.siang >= 5
-                              ? 'text-amber-900 bg-amber-50/40'
-                              : 'text-rose-700 bg-rose-50/50'
+                              ? 'text-amber-900 bg-amber-50 font-black'
+                              : 'text-rose-700 bg-rose-50'
                           }`}
                         >
                           {t.siang}
@@ -1575,9 +1594,9 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                     <tr>
                       <td
                         colSpan={2}
-                        className="sticky left-0 z-10 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-700 border-r border-slate-300"
+                        className="sticky left-0 z-30 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-800 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)]"
                       >
-                        Kelengkapan PJ (P/S) &amp; On-Call
+                        Kelengkapan PJ &amp; On-Call
                       </td>
                       {dailyNurseTotals.map((t) => {
                         const okWorkday = t.hasPjPagi && t.hasPjSiang;
@@ -1595,11 +1614,11 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                             className={`py-1.5 text-center font-bold border-r border-slate-200 ${
                               t.isSunday
                                 ? okSunday
-                                  ? 'text-teal-700 bg-teal-50/50'
-                                  : 'text-slate-400 bg-rose-50/40'
+                                  ? 'text-teal-700 bg-teal-50'
+                                  : 'text-slate-400 bg-rose-50/30'
                                 : okWorkday
-                                ? 'text-emerald-700 bg-emerald-50/40'
-                                : 'text-amber-700 bg-amber-50/60'
+                                ? 'text-emerald-700 bg-emerald-50'
+                                : 'text-amber-700 bg-amber-50'
                             }`}
                           >
                             {t.isSunday
@@ -1623,42 +1642,46 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
               </div>
             ) : (
               /* =============================================================== */
-              /* 2. MATRIKS BULANAN DOKTER GRID (DPJP & DOKTER JAGA)             */
+              /* 5B. MATRIKS DOKTER TABLE                                        */
               /* =============================================================== */
               <div
-                className="overflow-x-auto select-none"
+                className="overflow-x-auto overflow-y-auto max-h-[calc(100vh-250px)] select-none scrollbar-thin"
                 onMouseLeave={() => setIsDraggingPaint(false)}
               >
                 <table className="w-full border-collapse text-[11px] tabular-nums">
-                  <thead>
-                    <tr className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                      <th className="sticky left-0 z-20 bg-slate-100 p-2 w-9 min-w-[36px] text-center font-extrabold border-r border-slate-200">
+                  <thead className="sticky top-0 z-30 bg-slate-100 text-slate-700 shadow-xs">
+                    <tr className="border-b border-slate-300">
+                      {/* Sticky Col 1: No */}
+                      <th className="sticky left-0 z-30 bg-slate-100 p-2 w-11 min-w-[44px] max-w-[44px] text-center font-extrabold border-r border-slate-300">
                         No
                       </th>
-                      <th className="sticky left-9 z-20 bg-slate-100 px-3 py-2 min-w-[235px] max-w-[260px] text-left font-extrabold border-r border-slate-300 shadow-[2px_0_4px_-2px_rgba(15,23,42,0.12)]">
-                        Nama Dokter &amp; Kategori Peran
+                      {/* Sticky Col 2: Nama Dokter & Role */}
+                      <th className="sticky left-11 z-30 bg-slate-100 px-3 py-2 w-56 min-w-[220px] max-w-[220px] text-left font-extrabold border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">
+                        Nama Dokter &amp; Peran
                       </th>
+
+                      {/* Day Columns */}
                       {monthDays.map((d) => {
                         const isToday = d.isoDate === activeReferenceIso;
                         return (
                           <th
                             key={d.isoDate}
-                            className={`px-0.5 py-1.5 min-w-[36px] w-[36px] text-center border-r border-slate-200/90 ${
+                            className={`px-0.5 py-1.5 min-w-[36px] w-[36px] max-w-[36px] text-center border-r border-slate-200/90 ${
                               isToday
-                                ? 'bg-blue-100/90 text-blue-950'
+                                ? 'bg-sky-100 text-sky-950 font-black ring-1 ring-inset ring-sky-300'
                                 : d.isSunday
                                 ? 'bg-rose-50/90 text-rose-700'
                                 : 'bg-slate-100 text-slate-700'
                             }`}
                             title={formatIsoDateToIndonesianFull(d.isoDate)}
                           >
-                            <div className="font-mono font-extrabold text-[11px] leading-tight">
+                            <div className="font-mono font-extrabold text-[11.5px] leading-tight">
                               {String(d.day).padStart(2, '0')}
                             </div>
                             <div
-                              className={`text-[9.5px] font-bold leading-tight ${
+                              className={`text-[9px] font-bold leading-tight ${
                                 isToday
-                                  ? 'text-blue-800'
+                                  ? 'text-sky-800'
                                   : d.isSunday
                                   ? 'text-rose-600'
                                   : 'text-slate-500'
@@ -1669,27 +1692,28 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                           </th>
                         );
                       })}
-                      {/* Individual Monthly Summary Columns */}
+
+                      {/* Recap Columns */}
                       <th
-                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-sky-50/90 text-sky-900 border-l border-r border-slate-200"
+                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-sky-50 text-sky-900 border-l border-r border-slate-200"
                         title="Total Jaga / Visite Pagi"
                       >
                         P
                       </th>
                       <th
-                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-amber-50/90 text-amber-900 border-r border-slate-200"
+                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-amber-50 text-amber-900 border-r border-slate-200"
                         title="Total Jaga / Visite Siang"
                       >
                         S
                       </th>
                       <th
-                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-blue-50/90 text-blue-900 border-r border-slate-200"
+                        className="px-1.5 py-2 min-w-[34px] text-center font-extrabold bg-blue-50 text-blue-900 border-r border-slate-200"
                         title="Total Jaga Seharian (Pagi & Siang)"
                       >
                         PS
                       </th>
                       <th
-                        className="px-1.5 py-2 min-w-[38px] text-center font-extrabold bg-teal-50/90 text-teal-900 border-r border-slate-200"
+                        className="px-1.5 py-2 min-w-[36px] text-center font-extrabold bg-teal-50 text-teal-900 border-r border-slate-200"
                         title="Total On-Call Konsulen / Cito"
                       >
                         OC
@@ -1701,7 +1725,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                         L
                       </th>
                       <th
-                        className="px-2 py-2 min-w-[44px] text-center font-extrabold bg-slate-200/80 text-slate-900"
+                        className="px-2 py-2 min-w-[42px] text-center font-extrabold bg-slate-200/90 text-slate-900"
                         title="Total Hari Tugas Aktif Bulan Ini"
                       >
                         &Sigma;
@@ -1714,9 +1738,9 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                       <tr>
                         <td
                           colSpan={monthDays.length + 8}
-                          className="p-8 text-center text-xs text-slate-500"
+                          className="p-10 text-center text-xs text-slate-500"
                         >
-                          Tidak ada dokter yang sesuai dengan pencarian.
+                          Tidak ada dokter yang cocok dengan pencarian atau filter.
                         </td>
                       </tr>
                     ) : (
@@ -1732,41 +1756,42 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                             ? 'Dokter DPJP'
                             : doc.role === 'both'
                             ? 'DPJP & Jaga'
-                            : 'Dokter Jaga Ruangan';
-                        const rowBg = idx % 2 === 1 ? 'bg-slate-50/60' : 'bg-white';
+                            : 'Dokter Jaga';
+                        const roleBadge = isDpjp
+                          ? 'text-blue-700 bg-blue-50 border-blue-200'
+                          : 'text-emerald-700 bg-emerald-50 border-emerald-200';
+                        const rowBg = idx % 2 === 1 ? 'bg-slate-50/50' : 'bg-white';
                         const stickyBg = idx % 2 === 1 ? 'bg-slate-50' : 'bg-white';
 
                         return (
-                          <tr key={doc.id} className={`${rowBg} hover:bg-blue-50/25`}>
+                          <tr key={doc.id} className={`${rowBg} hover:bg-blue-50/30 transition-colors`}>
+                            {/* Sticky Col 1: No */}
                             <td
-                              className={`sticky left-0 z-10 ${stickyBg} p-1.5 text-center font-mono font-bold text-slate-400 border-r border-slate-200`}
+                              className={`sticky left-0 z-20 ${stickyBg} p-1.5 text-center font-mono font-bold text-slate-400 border-r border-slate-300`}
                             >
                               {idx + 1}
                             </td>
 
+                            {/* Sticky Col 2: Doctor Name & Role */}
                             <td
-                              className={`sticky left-9 z-10 ${stickyBg} px-3 py-1.5 border-r border-slate-300 shadow-[2px_0_4px_-2px_rgba(15,23,42,0.08)]`}
+                              className={`sticky left-11 z-20 ${stickyBg} px-3 py-1.5 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)]`}
                             >
-                              <div className="font-bold text-[11.5px] text-slate-900 truncate max-w-[230px]">
+                              <div className="font-extrabold text-[11.5px] text-slate-900 truncate max-w-[210px]">
                                 {doc.name}
                               </div>
-                              <div className="text-[10px] flex items-center gap-1.5 truncate">
-                                <span
-                                  className={`font-bold ${
-                                    isDpjp ? 'text-blue-700' : 'text-emerald-700'
-                                  }`}
-                                >
+                              <div className="text-[10px] flex items-center gap-1.5 truncate mt-0.5">
+                                <span className={`px-1.5 py-0.5 rounded text-[9.5px] font-bold border ${roleBadge}`}>
                                   {roleLabel}
                                 </span>
-                                {doc.phone && (
-                                  <>
-                                    <span className="text-slate-300">&middot;</span>
-                                    <span className="font-mono text-slate-400">{doc.phone}</span>
-                                  </>
+                                {doc.spesialisasi && (
+                                  <span className="text-slate-400 text-[9.5px] truncate">
+                                    {doc.spesialisasi}
+                                  </span>
                                 )}
                               </div>
                             </td>
 
+                            {/* Daily Cells */}
                             {monthDays.map((calDay) => {
                               const entry = getDoctorEntry(doc, calDay.isoDate);
                               const code = entryToDoctorMatrixCode(entry);
@@ -1779,7 +1804,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                                   key={calDay.isoDate}
                                   className={`p-0.5 text-center border-r border-slate-200/80 ${
                                     calDay.isoDate === activeReferenceIso
-                                      ? 'bg-blue-50/50'
+                                      ? 'bg-sky-50/50'
                                       : calDay.isSunday
                                       ? 'bg-rose-50/35'
                                       : ''
@@ -1818,13 +1843,17 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                                     title={`${doc.name} · ${calDay.dayFull}, ${dayLabel} · ${meta.label}${
                                       entry?.notes ? ` (${entry.notes})` : ''
                                     }`}
-                                    className={`relative w-full h-7 rounded-md border font-mono text-[10px] font-bold flex items-center justify-center transition-colors ${
+                                    className={`relative w-full h-8 rounded border font-mono text-[10.5px] font-bold flex items-center justify-center transition-all ${
                                       meta.cellClass
-                                    } ${canEditMatrix ? 'cursor-pointer' : 'cursor-default'}`}
+                                    } ${
+                                      canEditMatrix
+                                        ? 'cursor-pointer hover:scale-[1.04] active:scale-95'
+                                        : 'cursor-default'
+                                    }`}
                                   >
                                     <span>{code === '-' ? '·' : code}</span>
                                     {hasCustomNote && (
-                                      <span className="absolute top-0.5 right-0.5 w-1 h-1 rounded-full bg-current opacity-65" />
+                                      <span className="absolute top-0.5 right-0.5 w-1.5 h-1.5 rounded-full bg-blue-600 ring-1 ring-white" />
                                     )}
                                   </button>
                                 </td>
@@ -1847,7 +1876,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                             <td className="px-1 py-1.5 text-center font-mono text-slate-500 bg-slate-50/60 border-r border-slate-200">
                               {stat.liburCount}
                             </td>
-                            <td className="px-1.5 py-1.5 text-center font-mono font-extrabold text-slate-900 bg-slate-100/80">
+                            <td className="px-1.5 py-1.5 text-center font-mono font-extrabold text-slate-900 bg-slate-100/90">
                               {stat.activeDutyDays}
                             </td>
                           </tr>
@@ -1857,11 +1886,11 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                   </tbody>
 
                   {/* Daily Doctor Coverage Recap Footer */}
-                  <tfoot className="border-t-2 border-slate-300 bg-slate-50 text-[10.5px] font-mono">
+                  <tfoot className="border-t-2 border-slate-300 bg-slate-100 text-[10.5px] font-mono sticky bottom-0 z-20">
                     <tr className="border-b border-slate-200">
                       <td
                         colSpan={2}
-                        className="sticky left-0 z-10 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-700 border-r border-slate-300"
+                        className="sticky left-0 z-30 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-800 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)]"
                       >
                         &Sigma; Dokter DPJP Aktif / Konsulen
                       </td>
@@ -1870,8 +1899,8 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                           key={t.isoDate}
                           className={`py-1.5 text-center font-bold border-r border-slate-200 ${
                             t.dpjpAktif >= 1
-                              ? 'text-blue-800 bg-blue-50/40'
-                              : 'text-amber-700 bg-amber-50/50'
+                              ? 'text-blue-900 bg-blue-50 font-black'
+                              : 'text-amber-700 bg-amber-50'
                           }`}
                         >
                           {t.dpjpAktif}
@@ -1883,9 +1912,9 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                     <tr className="border-b border-slate-200">
                       <td
                         colSpan={2}
-                        className="sticky left-0 z-10 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-700 border-r border-slate-300"
+                        className="sticky left-0 z-30 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-800 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)]"
                       >
-                        &Sigma; dr. Jaga Ruangan Pagi
+                        &Sigma; dr. Jaga Pagi / Siang
                       </td>
                       {dailyDoctorTotals.map((t) => (
                         <td
@@ -1893,36 +1922,12 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                           className={`py-1.5 text-center font-bold border-r border-slate-200 ${
                             t.isSunday
                               ? 'text-slate-400 bg-rose-50/40'
-                              : t.jagaPagi >= 1
-                              ? 'text-sky-800 bg-sky-50/40'
-                              : 'text-amber-700 bg-amber-50/50'
+                              : t.jagaPagi >= 1 && t.jagaSiang >= 1
+                              ? 'text-emerald-900 bg-emerald-50 font-black'
+                              : 'text-amber-700 bg-amber-50'
                           }`}
                         >
-                          {t.jagaPagi}
-                        </td>
-                      ))}
-                      <td colSpan={6} className="bg-slate-100" />
-                    </tr>
-
-                    <tr className="border-b border-slate-200">
-                      <td
-                        colSpan={2}
-                        className="sticky left-0 z-10 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-700 border-r border-slate-300"
-                      >
-                        &Sigma; dr. Jaga Ruangan Siang
-                      </td>
-                      {dailyDoctorTotals.map((t) => (
-                        <td
-                          key={t.isoDate}
-                          className={`py-1.5 text-center font-bold border-r border-slate-200 ${
-                            t.isSunday
-                              ? 'text-slate-400 bg-rose-50/40'
-                              : t.jagaSiang >= 1
-                              ? 'text-amber-900 bg-amber-50/40'
-                              : 'text-rose-700 bg-rose-50/50'
-                          }`}
-                        >
-                          {t.jagaSiang}
+                          {t.jagaPagi}/{t.jagaSiang}
                         </td>
                       ))}
                       <td colSpan={6} className="bg-slate-100" />
@@ -1931,7 +1936,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                     <tr>
                       <td
                         colSpan={2}
-                        className="sticky left-0 z-10 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-700 border-r border-slate-300"
+                        className="sticky left-0 z-30 bg-slate-100 px-3 py-1.5 font-sans font-bold text-slate-800 border-r-2 border-slate-300 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.06)]"
                       >
                         &Sigma; Dokter On-Call (Cito)
                       </td>
@@ -1950,10 +1955,10 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
               </div>
             )}
 
-            {/* Legend Bar */}
+            {/* 5C. LEGEND BAR */}
             <div className="px-4 py-3 bg-slate-50 border-t border-slate-200 flex flex-wrap items-center justify-between gap-3 text-[11px] text-slate-600">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
-                <span className="font-extrabold text-slate-800">Keterangan Kode Matriks:</span>
+                <span className="font-extrabold text-slate-900">Keterangan Kode Shift:</span>
                 {(matrixTab === 'perawat' ? NURSE_MATRIX_PALETTE : DOCTOR_MATRIX_PALETTE)
                   .filter((p) => p.code !== '-')
                   .map((item) => (
@@ -1963,12 +1968,12 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                       >
                         {item.code}
                       </span>
-                      <span>{item.label}</span>
+                      <span className="text-slate-700">{item.label}</span>
                     </span>
                   ))}
               </div>
               <span className="text-[10.5px] text-slate-500">
-                Perubahan tersimpan otomatis &amp; tersinkronisasi lintas akun unit HD.
+                Pembaruan tersimpan otomatis &amp; tersinkronisasi realtime lintas akun staf HD.
               </span>
             </div>
           </div>
@@ -2022,7 +2027,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                           }
                           className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
                             active
-                              ? `${item.brushClass} shadow-xs`
+                              ? `${item.brushClass} shadow-xs ring-2 ring-blue-500`
                               : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
                           }`}
                         >
@@ -2049,7 +2054,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                           }
                           className={`p-2 rounded-xl border text-left transition-all cursor-pointer ${
                             active
-                              ? `${item.brushClass} shadow-xs`
+                              ? `${item.brushClass} shadow-xs ring-2 ring-blue-500`
                               : 'bg-slate-50 hover:bg-slate-100 text-slate-800 border-slate-200'
                           }`}
                         >
@@ -2095,7 +2100,7 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold cursor-pointer"
+                  className="px-4 py-2 bg-blue-700 hover:bg-blue-800 text-white rounded-xl text-xs font-bold cursor-pointer shadow-xs"
                 >
                   Simpan Sel Matriks
                 </button>

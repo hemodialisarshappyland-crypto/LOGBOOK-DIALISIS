@@ -84,7 +84,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'HD lancar toleransi baik, hemostasis 10 mnt',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -150,7 +150,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Dosis Rendah (3000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Dress CDL transparan steril, exit site tenang',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -183,7 +183,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (4000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Edukasi pembatasan cairan dan diit rendah garam',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -216,7 +216,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Bruit AVF paten, sensasi thrill kuat, kanulasi lancar',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -249,7 +249,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Free Heparin (Bled Risk)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Flushing NaCl 100 cc berkala per 30 menit, clotting (-)',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -282,7 +282,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Kanulasi graft terarah, aliran darah stabil hemostasis baik',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -348,7 +348,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Pasien lansia 80 th, mobilisasi hati-hati tensi berkala stabil',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -381,7 +381,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Sesi HD selesai optimal, keluhan dispepsia/mual nihil',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -414,7 +414,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (4000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Dry weight tercapai optimal, kepatuhan antihipertensi baik',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -480,7 +480,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Edukasi pembatasan asupan air minum interdialitik',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -513,7 +513,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (4000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Pasien ranap Bangsal Dahlia R.302, transfer brankar stabil',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -546,7 +546,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Hemostasis tercapai 10 menit tanpa hematom post-kanulasi',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -579,7 +579,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (4000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Toleransi ultrafiltrasi optimal, keluhan pusing nihil',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -612,7 +612,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (4000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Injeksi EPO pasca-HD sesuai instruksi medis DPJP',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -645,7 +645,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'HD berjalan lancar, hemostasis kanulasi baik',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -678,7 +678,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Bruit AVF paten, kanulasi tanpa penyulit lancar',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -711,7 +711,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (4000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Edukasi diit tinggi protein rendah kalium teratur',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -744,7 +744,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Tanda vital stabil sepanjang proses hemodialisis',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -777,7 +777,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (SAS HF 18)',
     heparinisasi: 'Dosis Rendah (3000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Perawatan CDL aseptik, heparin lock tepat dosis lumen',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Heat Clean',
     ketTeknis: 'Normal',
@@ -810,7 +810,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (Dedicated Hep B)',
     heparinisasi: 'Standar (5000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Protokol isolasi Hepatitis B ketat, APD lengkap, desinfeksi tuntas',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Chemical Clean',
     ketTeknis: 'Khusus Hep B',
@@ -843,7 +843,7 @@ export const BENCHMARK_LAPORAN_PASIEN_ROWS: LaporanPasienRow[] = [
     dialiser: 'High Flux (Dedicated Hep C)',
     heparinisasi: 'Standar (4000 IU)',
     komplikasiIntraHd: 'Tidak ada',
-    tindakanAdvisDpjp: 'Protokol pencegahan infeksi hepatitis C, desinfeksi mesin ganda selesai',
+    tindakanAdvisDpjp: 'Tidak ada',
     statusMesin: 'Siap Pakai',
     metodeDisinfeksi: 'Chemical Clean',
     ketTeknis: 'Khusus Hep C',
@@ -1016,18 +1016,27 @@ export function convertSessionToLaporanRow(session: PatientHDSession, index: num
     }
   }
 
-  const tindakanAdvis =
-    session.consultAdvice ||
-    session.bagian4?.consultAdviceTbak ||
-    (session.hasMuscleCramps
-      ? session.muscleCrampAction || 'Masase betis, peregangan, bolus NaCl 100cc, evaluasi DPJP'
-      : session.hasHypotension
-      ? session.hypotensionAction || 'Trendelenburg, bolus saline 150cc, lapor DPJP toleransi under-UF'
-      : session.hasClotting
-      ? session.clottingDetails || 'Flushing NaCl 100cc berkala, ganti blood set bila perlu'
-      : statusRawat === 'Rawat Inap'
-      ? 'Pasien rawat inap, transfer brankar stabil, evaluasi instruksi DPJP'
-      : 'HD lancar, toleransi hemodinamik stabil, hemostasis 10 menit');
+  const hasComp = Boolean(
+    komplikasi &&
+    komplikasi.trim() &&
+    komplikasi.trim().toLowerCase() !== 'tidak ada'
+  );
+
+  const hasExplicitConsult = Boolean(
+    (session.consultAdvice && session.consultAdvice.trim() && session.consultAdvice.trim().toLowerCase() !== 'tidak ada') ||
+    (session.bagian4?.consultAdviceTbak && session.bagian4.consultAdviceTbak.trim() && session.bagian4.consultAdviceTbak.trim().toLowerCase() !== 'tidak ada')
+  );
+
+  let tindakanAdvis = 'Tidak ada';
+  if (hasExplicitConsult) {
+    tindakanAdvis = (session.consultAdvice || session.bagian4?.consultAdviceTbak || '').trim();
+  } else if (hasComp) {
+    tindakanAdvis =
+      session.muscleCrampAction?.trim() ||
+      session.hypotensionAction?.trim() ||
+      session.clottingDetails?.trim() ||
+      'Tidak ada';
+  }
 
   const noBedMesin = formatBedAndMachineLabel(session.bedNumber, index);
 
@@ -1196,12 +1205,16 @@ export function collectAllInputtedLogbookRows(params: {
             heparinisasi = 'Standar (4000 IU)';
           }
 
-          const tindakanAdvis =
-            resolvedComp.activeCount > 0 && resolvedComp.doctorAdviceSummary
-              ? resolvedComp.doctorAdviceSummary
-              : statusRawat === 'Rawat Inap'
-              ? 'Pasien rawat inap, transfer brankar stabil, evaluasi instruksi DPJP'
-              : 'HD lancar, toleransi hemodinamik stabil, hemostasis 10 menit';
+          const hasPoin4_3Advice = Boolean(
+            resolvedComp.activeCount > 0 &&
+            resolvedComp.doctorAdviceSummary &&
+            resolvedComp.doctorAdviceSummary.trim() &&
+            resolvedComp.doctorAdviceSummary.trim().toLowerCase() !== 'tidak ada'
+          );
+
+          const tindakanAdvis = hasPoin4_3Advice
+            ? resolvedComp.doctorAdviceSummary
+            : 'Tidak ada';
 
           const noBedMesin = formatBedAndMachineLabel(mp.bedNumber, candidateRows.length);
           const rawBedDigits = (mp.bedNumber?.match(/\d+/) || ['01'])[0].padStart(2, '0');

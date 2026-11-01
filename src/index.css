@@ -128,4 +128,21 @@
       box-shadow: none !important;
     }
   }
+
+  /* Programmatic PDF Export helper rules */
+  body.dialysis-pdf-exporting .overflow-x-auto,
+  body.dialysis-pdf-exporting .overflow-y-auto,
+  body.dialysis-pdf-exporting .scrollbar-thin,
+  .dialysis-pdf-exporting .overflow-x-auto,
+  .dialysis-pdf-exporting .overflow-y-auto {
+    overflow: visible !important;
+    max-height: none !important;
+    max-width: none !important;
+  }
+
+  body.dialysis-pdf-exporting .printable-sheet,
+  .dialysis-pdf-exporting.printable-sheet {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
 }

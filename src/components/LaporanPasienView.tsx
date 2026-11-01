@@ -228,7 +228,9 @@ export const LaporanPasienView: React.FC<LaporanPasienViewProps> = ({
       const docTitle = `Laporan_Pasien_HD_Shift_${selectedShift}_${activeDateIso}`;
       await downloadElementAsPdf('printable-patient-report', {
         filename: docTitle,
-        isLandscape: true
+        isLandscape: true,
+        targetWidthPx: 2040,
+        fitToSinglePage: filteredRows.length <= 26
       });
     } catch (err) {
       console.error('Download PDF error:', err);
@@ -843,7 +845,16 @@ export const LaporanPasienView: React.FC<LaporanPasienViewProps> = ({
 
                       {/* TINDAKAN & ADVIS MEDIS DPJP */}
                       <td className="border border-slate-300 print:border-black p-1 text-[8.5px] sm:text-[9.5px] print:text-[7.5px] leading-snug">
-                        {row.tindakanAdvisDpjp}
+                        {(!row.tindakanAdvisDpjp ||
+                        row.tindakanAdvisDpjp.trim() === '' ||
+                        row.tindakanAdvisDpjp === '-' ||
+                        row.tindakanAdvisDpjp.toLowerCase() === 'tidak ada' ||
+                        row.komplikasiIntraHd === 'Tidak ada' ||
+                        row.komplikasiIntraHd.toLowerCase() === 'tidak ada') ? (
+                          <span className="text-slate-500 font-medium">Tidak ada</span>
+                        ) : (
+                          <span>{row.tindakanAdvisDpjp}</span>
+                        )}
                       </td>
 
                       {/* STATUS MESIN */}
