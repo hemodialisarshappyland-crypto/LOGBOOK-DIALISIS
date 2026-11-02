@@ -1349,11 +1349,15 @@ export function resolvePjShiftEntryFromMatrix(
 /**
  * Resolves scheduled DPJP & Dokter Jaga from the Administrator's Monthly Doctor Matrix
  * for a given date & shift ('Pagi' or 'Siang').
+ *
+ * Supports role lookup in masterDoctors, name heuristics (Sp.PD / KGH),
+ * and sensible clinical fallbacks (e.g. DPJP Visite Pagi covering afternoon HD sessions).
  */
 export function resolveScheduledDoctorsFromMatrix(
   doctorSchedules: DoctorScheduleEntry[] | undefined,
   dateIso: string | undefined,
-  shift: 'Pagi' | 'Siang'
+  shift: 'Pagi' | 'Siang',
+  masterDoctors?: MasterDoctor[]
 ): {
   primaryDpjp: string | null;
   primaryJaga: string | null;
@@ -1371,34 +1375,113 @@ export function resolveScheduledDoctorsFromMatrix(
     };
   }
 
-  const forDate = doctorSchedules.filter((d) => d.date === dateIso);
-  const dpjpOnShift = forDate.filter(
-    (d) =>
-      (d.role === 'dpjp' || d.role === 'both') &&
-      (d.shift === shift || d.shift === 'All-Day')
-  );
-  const dpjpOnCall = forDate.filter(
-    (d) => (d.role === 'dpjp' || d.role === 'both') && d.shift === 'On-Call'
-  );
+  const forDate = doctorSchedules.filter((d) => d && d.date === dateIso);
+  if (forDate.length === 0) {
+    return {
+      primaryDpjp: null,
+      primaryJaga: null,
+      scheduledDpjpNames: [],
+      scheduledJagaNames: [],
+      onCallNames: []
+    };
+  }
 
-  const jagaOnShift = forDate.filter(
-    (d) =>
-      (d.role === 'dokter_jaga' || d.role === 'both') &&
-      (d.shift === shift || d.shift === 'All-Day')
+  // Helper to determine if a doctor is DPJP or Dokter Jaga
+  const resolveRole = (d: DoctorScheduleEntry): 'dpjp' | 'dokter_jaga' | 'both' => {
+    if (d.role === 'dpjp' || d.role === 'dokter_jaga' || d.role === 'both') {
+      return d.role;
+    }
+    if (Array.isArray(masterDoctors) && masterDoctors.length > 0) {
+      const match = masterDoctors.find(
+        (m) =>
+          (d.doctorId && m.id === d.doctorId) ||
+          isMatchingSchedulePersonName(d.doctorName, m.name)
+      );
+      if (match?.role) return match.role;
+    }
+    const nameLower = (d.doctorName || '').toLowerCase();
+    const specLower = (d.spesialisasi || '').toLowerCase();
+    if (
+      nameLower.includes('sp.pd') ||
+      nameLower.includes('kgh') ||
+      nameLower.includes('heru') ||
+      nameLower.includes('muntaqinah') ||
+      nameLower.includes('alfany') ||
+      specLower.includes('sp.pd') ||
+      specLower.includes('kgh') ||
+      specLower.includes('ginjal') ||
+      specLower.includes('nefrolog')
+    ) {
+      return 'dpjp';
+    }
+    return 'dokter_jaga';
+  };
+
+  const isDpjp = (d: DoctorScheduleEntry) => {
+    const r = resolveRole(d);
+    return r === 'dpjp' || r === 'both';
+  };
+
+  const isJaga = (d: DoctorScheduleEntry) => {
+    const r = resolveRole(d);
+    return r === 'dokter_jaga' || r === 'both';
+  };
+
+  // DPJP:
+  // 1. Direct shift match (shift or All-Day)
+  const dpjpOnShift = forDate.filter(
+    (d) => isDpjp(d) && (d.shift === shift || d.shift === 'All-Day')
   );
-  const jagaOnCall = forDate.filter(
-    (d) => (d.role === 'dokter_jaga' || d.role === 'both') && d.shift === 'On-Call'
+  // 2. Active DPJP on that date (not Libur) - e.g. Visite Pagi covering Siang
+  const dpjpActiveOnDate = forDate.filter(
+    (d) => isDpjp(d) && d.shift && d.shift !== 'Libur'
+  );
+  // 3. DPJP On-Call
+  const dpjpOnCall = forDate.filter((d) => isDpjp(d) && d.shift === 'On-Call');
+
+  // Dokter Jaga Ruangan:
+  // 1. Direct shift match (shift or All-Day)
+  const jagaOnShift = forDate.filter(
+    (d) => isJaga(d) && (d.shift === shift || d.shift === 'All-Day')
+  );
+  // 2. Jaga On-Call
+  const jagaOnCall = forDate.filter((d) => isJaga(d) && d.shift === 'On-Call');
+  // 3. Any active jaga on that date (not Libur)
+  const jagaActiveOnDate = forDate.filter(
+    (d) => isJaga(d) && d.shift && d.shift !== 'Libur'
   );
 
   const onCallAll = forDate
     .filter((d) => d.shift === 'On-Call')
     .map((d) => d.doctorName);
 
+  const primaryDpjp =
+    dpjpOnShift[0]?.doctorName ||
+    dpjpActiveOnDate[0]?.doctorName ||
+    dpjpOnCall[0]?.doctorName ||
+    null;
+
+  const primaryJaga =
+    jagaOnShift[0]?.doctorName ||
+    jagaOnCall[0]?.doctorName ||
+    jagaActiveOnDate[0]?.doctorName ||
+    null;
+
+  const scheduledDpjpNames =
+    dpjpOnShift.length > 0
+      ? dpjpOnShift.map((d) => d.doctorName)
+      : dpjpActiveOnDate.map((d) => d.doctorName);
+
+  const scheduledJagaNames =
+    jagaOnShift.length > 0
+      ? jagaOnShift.map((d) => d.doctorName)
+      : jagaActiveOnDate.map((d) => d.doctorName);
+
   return {
-    primaryDpjp: dpjpOnShift[0]?.doctorName || dpjpOnCall[0]?.doctorName || null,
-    primaryJaga: jagaOnShift[0]?.doctorName || jagaOnCall[0]?.doctorName || null,
-    scheduledDpjpNames: dpjpOnShift.map((d) => d.doctorName),
-    scheduledJagaNames: jagaOnShift.map((d) => d.doctorName),
+    primaryDpjp,
+    primaryJaga,
+    scheduledDpjpNames,
+    scheduledJagaNames,
     onCallNames: onCallAll
   };
 }
@@ -1481,5 +1564,94 @@ export function resolveScheduledNursesFromMatrix(
     hasScheduleForDate: true
   };
 }
+
+/**
+ * Merges local and remote nurse schedules safely without losing user inputs.
+ * - If remote is empty, keeps all local entries (prevents wiping on fresh/uninitialized cloud).
+ * - Matches by unique key: (nurseId || normalizedNurseName) + '__' + date.
+ * - When conflict exists: keeps whichever entry has the more recent `updatedAt` ISO timestamp.
+ */
+export function mergeNurseSchedules(
+  local: NurseScheduleEntry[],
+  remote: NurseScheduleEntry[]
+): NurseScheduleEntry[] {
+  if (!Array.isArray(remote) || remote.length === 0) return local;
+  if (!Array.isArray(local) || local.length === 0) return remote;
+
+  const map = new Map<string, NurseScheduleEntry>();
+
+  const getEntryKey = (entry: NurseScheduleEntry): string => {
+    const idOrName = (entry.nurseId || normalizeClinicalPersonName(entry.nurseName) || '').trim().toLowerCase();
+    return `${idOrName}__${entry.date}`;
+  };
+
+  for (const item of local) {
+    if (item && item.date) {
+      map.set(getEntryKey(item), item);
+    }
+  }
+
+  for (const item of remote) {
+    if (!item || !item.date) continue;
+    const key = getEntryKey(item);
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, item);
+    } else {
+      const existingTime = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+      const remoteTime = item.updatedAt ? new Date(item.updatedAt).getTime() : 0;
+      if (remoteTime > existingTime) {
+        map.set(key, item);
+      }
+    }
+  }
+
+  return Array.from(map.values());
+}
+
+/**
+ * Merges local and remote doctor schedules safely without losing user inputs.
+ * - If remote is empty, keeps all local entries (prevents wiping on fresh/uninitialized cloud).
+ * - Matches by unique key: (doctorId || normalizedDoctorName) + '__' + date.
+ * - When conflict exists: keeps whichever entry has the more recent `updatedAt` ISO timestamp.
+ */
+export function mergeDoctorSchedules(
+  local: DoctorScheduleEntry[],
+  remote: DoctorScheduleEntry[]
+): DoctorScheduleEntry[] {
+  if (!Array.isArray(remote) || remote.length === 0) return local;
+  if (!Array.isArray(local) || local.length === 0) return remote;
+
+  const map = new Map<string, DoctorScheduleEntry>();
+
+  const getEntryKey = (entry: DoctorScheduleEntry): string => {
+    const idOrName = (entry.doctorId || normalizeClinicalPersonName(entry.doctorName) || '').trim().toLowerCase();
+    return `${idOrName}__${entry.date}`;
+  };
+
+  for (const item of local) {
+    if (item && item.date) {
+      map.set(getEntryKey(item), item);
+    }
+  }
+
+  for (const item of remote) {
+    if (!item || !item.date) continue;
+    const key = getEntryKey(item);
+    const existing = map.get(key);
+    if (!existing) {
+      map.set(key, item);
+    } else {
+      const existingTime = existing.updatedAt ? new Date(existing.updatedAt).getTime() : 0;
+      const remoteTime = item.updatedAt ? new Date(item.updatedAt).getTime() : 0;
+      if (remoteTime > existingTime) {
+        map.set(key, item);
+      }
+    }
+  }
+
+  return Array.from(map.values());
+}
+
 
 

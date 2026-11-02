@@ -725,12 +725,19 @@ export function subscribeToNurseSchedules(onUpdate: (schedules: NurseScheduleEnt
   return onSnapshot(
     docRef,
     (snapshot) => {
+      if (snapshot.metadata.hasPendingWrites) {
+        return;
+      }
       if (snapshot.exists()) {
         const d = snapshot.data();
         if (Array.isArray(d?.schedules)) {
           const docKey = 'shift_reports/roster_nurse_schedules';
           const cleaned = cleanFirestoreData({ schedules: d.schedules });
-          lastWrittenDocHashes.set(docKey, hashObject(cleaned));
+          const contentHash = hashObject(cleaned);
+          if (lastWrittenDocHashes.get(docKey) === contentHash) {
+            return;
+          }
+          lastWrittenDocHashes.set(docKey, contentHash);
           onUpdate(d.schedules as NurseScheduleEntry[]);
         }
       }
@@ -789,12 +796,19 @@ export function subscribeToDoctorSchedules(onUpdate: (schedules: DoctorScheduleE
   return onSnapshot(
     docRef,
     (snapshot) => {
+      if (snapshot.metadata.hasPendingWrites) {
+        return;
+      }
       if (snapshot.exists()) {
         const d = snapshot.data();
         if (Array.isArray(d?.schedules)) {
           const docKey = 'shift_reports/roster_doctor_schedules';
           const cleaned = cleanFirestoreData({ schedules: d.schedules });
-          lastWrittenDocHashes.set(docKey, hashObject(cleaned));
+          const contentHash = hashObject(cleaned);
+          if (lastWrittenDocHashes.get(docKey) === contentHash) {
+            return;
+          }
+          lastWrittenDocHashes.set(docKey, contentHash);
           onUpdate(d.schedules as DoctorScheduleEntry[]);
         }
       }

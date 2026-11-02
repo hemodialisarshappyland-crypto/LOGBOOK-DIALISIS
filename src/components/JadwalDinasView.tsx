@@ -485,15 +485,13 @@ export const JadwalDinasView: React.FC<JadwalDinasViewProps> = ({
         : monthDoctorSchedules.length > 0;
 
     if (action === 'fill_standard') {
-      if (!hasExisting) {
-        executeBatchAction('fill_standard', matrixTab);
-        return;
-      }
       setPendingConfirm({
         action: 'fill_standard',
         target: matrixTab,
         title: `Terapkan Pola Standar ${targetLabel} (${monthName} ${selectedYear})?`,
-        description: `Matriks ${targetLabel.toLowerCase()} bulan ${monthName} ${selectedYear} akan diisi otomatis sesuai rotasi standar PERNEFRI untuk seluruh tanggal 1 s/d ${monthDays.length}.`
+        description: hasExisting
+          ? `Perhatian: Matriks ${targetLabel.toLowerCase()} bulan ${monthName} ${selectedYear} sudah memiliki data isian. Menerapkan pola standar akan menimpa isian bulan ini sesuai rotasi standar PERNEFRI.`
+          : `Matriks ${targetLabel.toLowerCase()} bulan ${monthName} ${selectedYear} akan diisi otomatis sesuai rotasi standar PERNEFRI untuk seluruh tanggal 1 s/d ${monthDays.length}.`
       });
     } else if (action === 'copy_prev') {
       setPendingConfirm({

@@ -693,8 +693,14 @@ export const Logbook5ButtonsView: React.FC<Logbook5ButtonsViewProps> = ({
 
   // Resolve scheduled DPJP & Dokter Jaga from Administrator's Monthly Doctor Matrix for (activeDateIso, activeShift)
   const matrixDoctors = React.useMemo(
-    () => resolveScheduledDoctorsFromMatrix(doctorSchedules, activeDateIso, activeShift),
-    [doctorSchedules, activeDateIso, activeShift]
+    () =>
+      resolveScheduledDoctorsFromMatrix(
+        doctorSchedules,
+        activeDateIso,
+        activeShift,
+        masterDoctors
+      ),
+    [doctorSchedules, activeDateIso, activeShift, masterDoctors]
   );
 
   const manualDoctorsOverrideKey = `${shiftDoctorsStorageKey}_manual_${activeDateIso}_${activeShift}`;
@@ -717,9 +723,9 @@ export const Logbook5ButtonsView: React.FC<Logbook5ButtonsViewProps> = ({
   const [selectedDokterDpjp, setSelectedDokterDpjp] = useState<string>(() => {
     const manualDoc = readManualDoctorsOverride();
     if (manualDoc?.dokterDpjp) return manualDoc.dokterDpjp;
+    if (matrixDoctors.primaryDpjp) return matrixDoctors.primaryDpjp;
     const sharedShiftDoc = readShiftLogbookDoctorsFromStorage(activeDateIso, activeShift);
     if (sharedShiftDoc?.isManual && sharedShiftDoc.dokterDpjp) return sharedShiftDoc.dokterDpjp;
-    if (matrixDoctors.primaryDpjp) return matrixDoctors.primaryDpjp;
     if (sharedShiftDoc?.dokterDpjp) return sharedShiftDoc.dokterDpjp;
     try {
       const saved = localStorage.getItem(shiftDoctorsStorageKey);
@@ -736,9 +742,9 @@ export const Logbook5ButtonsView: React.FC<Logbook5ButtonsViewProps> = ({
   const [selectedDokterJaga, setSelectedDokterJaga] = useState<string>(() => {
     const manualDoc = readManualDoctorsOverride();
     if (manualDoc?.dokterJaga) return manualDoc.dokterJaga;
+    if (matrixDoctors.primaryJaga) return matrixDoctors.primaryJaga;
     const sharedShiftDoc = readShiftLogbookDoctorsFromStorage(activeDateIso, activeShift);
     if (sharedShiftDoc?.isManual && sharedShiftDoc.dokterJaga) return sharedShiftDoc.dokterJaga;
-    if (matrixDoctors.primaryJaga) return matrixDoctors.primaryJaga;
     if (sharedShiftDoc?.dokterJaga) return sharedShiftDoc.dokterJaga;
     try {
       const saved = localStorage.getItem(shiftDoctorsStorageKey);
@@ -758,14 +764,14 @@ export const Logbook5ButtonsView: React.FC<Logbook5ButtonsViewProps> = ({
     const sharedShiftDoc = readShiftLogbookDoctorsFromStorage(activeDateIso, activeShift);
     const targetDpjp =
       manualDoc?.dokterDpjp ||
-      (sharedShiftDoc?.isManual ? sharedShiftDoc.dokterDpjp : undefined) ||
       matrixDoctors.primaryDpjp ||
+      (sharedShiftDoc?.isManual ? sharedShiftDoc.dokterDpjp : undefined) ||
       shiftInfo?.dokterDpjp ||
       selectedDokterDpjp;
     const targetJaga =
       manualDoc?.dokterJaga ||
-      (sharedShiftDoc?.isManual ? sharedShiftDoc.dokterJaga : undefined) ||
       matrixDoctors.primaryJaga ||
+      (sharedShiftDoc?.isManual ? sharedShiftDoc.dokterJaga : undefined) ||
       shiftInfo?.dokterJaga ||
       selectedDokterJaga;
 
@@ -812,7 +818,11 @@ export const Logbook5ButtonsView: React.FC<Logbook5ButtonsViewProps> = ({
     isToday,
     currentNurse.name,
     readManualDoctorsOverride,
-    shiftDoctorsStorageKey
+    shiftDoctorsStorageKey,
+    selectedDokterDpjp,
+    selectedDokterJaga,
+    shiftInfo?.dokterDpjp,
+    shiftInfo?.dokterJaga
   ]);
 
   const handleUpdateDokterDpjp = (nama: string) => {

@@ -10,7 +10,9 @@ import {
   generateMonthlyDoctorRoster,
   resolveNurseMatrixShiftForDate,
   resolvePjShiftEntryFromMatrix,
-  resolveScheduledDoctorsFromMatrix
+  resolveScheduledDoctorsFromMatrix,
+  mergeNurseSchedules,
+  mergeDoctorSchedules
 } from './monthlyScheduleMatrixHelpers.ts';
 import { sampleBenchmarkNurses, initialMasterDoctors } from '../data/mockMasterData.ts';
 
@@ -112,5 +114,106 @@ test('resolveNurseMatrixShiftForDate, resolvePjShiftEntryFromMatrix, and resolve
   const resolvedDocs = resolveScheduledDoctorsFromMatrix(docRoster, iso, 'Siang');
   assert.equal(resolvedDocs.primaryDpjp, dpjpDoc.name);
   assert.equal(resolvedDocs.primaryJaga, jagaDoc.name);
+
+  // Fallback: DPJP scheduled 'P' (Visite Pagi) covers afternoon HD sessions when no other DPJP is on Siang
+  let docRosterMorningVisite = applyDoctorMatrixCell([], dpjpDoc, iso, 'P');
+  docRosterMorningVisite = applyDoctorMatrixCell(docRosterMorningVisite, jagaDoc, iso, 'S');
+  const resolvedVisiteDocs = resolveScheduledDoctorsFromMatrix(
+    docRosterMorningVisite,
+    iso,
+    'Siang',
+    initialMasterDoctors
+  );
+  assert.equal(resolvedVisiteDocs.primaryDpjp, dpjpDoc.name);
+  assert.equal(resolvedVisiteDocs.primaryJaga, jagaDoc.name);
+
+  // Role resolution: entries without explicit role field resolve via masterDoctors
+  const unrolledEntries: any[] = [
+    {
+      id: 'dsch-test-1',
+      doctorId: dpjpDoc.id,
+      doctorName: dpjpDoc.name,
+      date: iso,
+      shift: 'Pagi'
+      // role omitted
+    },
+    {
+      id: 'dsch-test-2',
+      doctorId: jagaDoc.id,
+      doctorName: jagaDoc.name,
+      date: iso,
+      shift: 'Siang'
+      // role omitted
+    }
+  ];
+  const resolvedFromMaster = resolveScheduledDoctorsFromMatrix(
+    unrolledEntries,
+    iso,
+    'Siang',
+    initialMasterDoctors
+  );
+  assert.equal(resolvedFromMaster.primaryDpjp, dpjpDoc.name);
+  assert.equal(resolvedFromMaster.primaryJaga, jagaDoc.name);
 });
+
+test('mergeNurseSchedules and mergeDoctorSchedules preserve local data and avoid data loss', () => {
+  // 1. If remote is empty, keeps all local entries
+  const localDocEntries = [
+    {
+      id: 'dsch-1',
+      doctorId: 'doc-1',
+      doctorName: 'dr. Raden Heru',
+      date: '2026-11-01',
+      shift: 'Pagi' as const,
+      role: 'dpjp' as const,
+      updatedAt: '2026-11-01T08:00:00Z'
+    }
+  ];
+  const mergedWithEmptyRemote = mergeDoctorSchedules(localDocEntries, []);
+  assert.equal(mergedWithEmptyRemote.length, 1);
+  assert.equal(mergedWithEmptyRemote[0].doctorName, 'dr. Raden Heru');
+
+  // 2. If local has entries and remote has different dates, merges both without dropping either
+  const remoteDocEntries = [
+    {
+      id: 'dsch-2',
+      doctorId: 'doc-1',
+      doctorName: 'dr. Raden Heru',
+      date: '2026-11-02',
+      shift: 'Siang' as const,
+      role: 'dpjp' as const,
+      updatedAt: '2026-11-01T09:00:00Z'
+    }
+  ];
+  const mergedBoth = mergeDoctorSchedules(localDocEntries, remoteDocEntries);
+  assert.equal(mergedBoth.length, 2);
+
+  // 3. Conflict resolution: newer updatedAt wins
+  const newerLocalDoc = [
+    {
+      id: 'dsch-1',
+      doctorId: 'doc-1',
+      doctorName: 'dr. Raden Heru',
+      date: '2026-11-01',
+      shift: 'Siang' as const, // Local was updated to Siang later
+      role: 'dpjp' as const,
+      updatedAt: '2026-11-01T10:00:00Z'
+    }
+  ];
+  const olderRemoteDoc = [
+    {
+      id: 'dsch-1',
+      doctorId: 'doc-1',
+      doctorName: 'dr. Raden Heru',
+      date: '2026-11-01',
+      shift: 'Pagi' as const,
+      role: 'dpjp' as const,
+      updatedAt: '2026-11-01T08:00:00Z'
+    }
+  ];
+  const conflictResolved = mergeDoctorSchedules(newerLocalDoc, olderRemoteDoc);
+  assert.equal(conflictResolved.length, 1);
+  assert.equal(conflictResolved[0].shift, 'Siang');
+});
+
 

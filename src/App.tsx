@@ -46,7 +46,10 @@ import {
 } from './data/mockScheduleData.ts';
 import {
   resolveNurseMatrixShiftForDate,
-  resolvePjShiftEntryFromMatrix
+  resolvePjShiftEntryFromMatrix,
+  resolveScheduledDoctorsFromMatrix,
+  mergeNurseSchedules,
+  mergeDoctorSchedules
 } from './utils/monthlyScheduleMatrixHelpers.ts';
 import {
   computeCensusAndAccess,
@@ -392,9 +395,10 @@ export default function App() {
 
   const [nurseSchedules, setNurseSchedules] = useState<NurseScheduleEntry[]>(() => {
     try {
-      const persistedMonthly = localStorage.getItem('dialysis_nurse_schedules_v2_monthly');
-      if (persistedMonthly) {
-        const parsed = JSON.parse(persistedMonthly);
+      const primaryKey = 'dialysis_nurse_schedules_v2_monthly';
+      const rawCurrent = localStorage.getItem(primaryKey);
+      if (rawCurrent) {
+        const parsed = JSON.parse(rawCurrent);
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed as NurseScheduleEntry[];
         }
@@ -403,19 +407,8 @@ export default function App() {
       if (legacyV1) {
         const parsedLegacy = JSON.parse(legacyV1);
         if (Array.isArray(parsedLegacy) && parsedLegacy.length > 0) {
-          const legacyMap = new Map<string, NurseScheduleEntry>();
-          (parsedLegacy as NurseScheduleEntry[]).forEach((s) => {
-            legacyMap.set(`${s.nurseId || s.nurseName}__${s.date}`, s);
-          });
-          const merged = initialNurseSchedules.map(
-            (seed) => legacyMap.get(`${seed.nurseId || seed.nurseName}__${seed.date}`) || seed
-          );
-          (parsedLegacy as NurseScheduleEntry[]).forEach((s) => {
-            const exists = merged.some(
-              (m) => m.date === s.date && (m.nurseId === s.nurseId || m.nurseName === s.nurseName)
-            );
-            if (!exists) merged.push(s);
-          });
+          const merged = mergeNurseSchedules(initialNurseSchedules, parsedLegacy as NurseScheduleEntry[]);
+          localStorage.setItem(primaryKey, JSON.stringify(merged));
           return merged;
         }
       }
@@ -427,15 +420,30 @@ export default function App() {
 
   const [doctorSchedules, setDoctorSchedules] = useState<DoctorScheduleEntry[]>(() => {
     try {
-      localStorage.removeItem('dialysis_doctor_schedules_v1');
-      localStorage.removeItem('dialysis_doctor_schedules_v2');
-      localStorage.removeItem('dialysis_doctor_schedules_v4_13');
-      localStorage.removeItem('dialysis_doctor_schedules_v5_monthly');
-      const persistedMonthly = localStorage.getItem('dialysis_doctor_schedules_v7_clean');
+      const primaryKey = 'dialysis_doctor_schedules_v7_clean';
+      const persistedMonthly = localStorage.getItem(primaryKey);
       if (persistedMonthly) {
         const parsed = JSON.parse(persistedMonthly);
-        if (Array.isArray(parsed)) {
+        if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed as DoctorScheduleEntry[];
+        }
+      }
+
+      // Check legacy storage keys to recover previously entered doctor schedules
+      const legacyKeys = [
+        'dialysis_doctor_schedules_v5_monthly',
+        'dialysis_doctor_schedules_v4_13',
+        'dialysis_doctor_schedules_v2',
+        'dialysis_doctor_schedules_v1'
+      ];
+      for (const key of legacyKeys) {
+        const raw = localStorage.getItem(key);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            localStorage.setItem(primaryKey, JSON.stringify(parsed));
+            return parsed as DoctorScheduleEntry[];
+          }
         }
       }
     } catch {
@@ -444,22 +452,30 @@ export default function App() {
     return [];
   });
 
+  // Debounced cloud save for Nurse Schedules (immediate localStorage, 800ms debounced Firestore write)
   useEffect(() => {
     try {
       localStorage.setItem('dialysis_nurse_schedules_v2_monthly', JSON.stringify(nurseSchedules));
     } catch {
       // ignore
     }
-    saveNurseSchedulesCloud(nurseSchedules).catch(() => {});
+    const timer = setTimeout(() => {
+      saveNurseSchedulesCloud(nurseSchedules).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
   }, [nurseSchedules]);
 
+  // Debounced cloud save for Doctor Schedules (immediate localStorage, 800ms debounced Firestore write)
   useEffect(() => {
     try {
       localStorage.setItem('dialysis_doctor_schedules_v7_clean', JSON.stringify(doctorSchedules));
     } catch {
       // ignore
     }
-    saveDoctorSchedulesCloud(doctorSchedules).catch(() => {});
+    const timer = setTimeout(() => {
+      saveDoctorSchedulesCloud(doctorSchedules).catch(() => {});
+    }, 800);
+    return () => clearTimeout(timer);
   }, [doctorSchedules]);
 
   // Real-time Cloud Firestore sync for Master Nurses, Nurse & Doctor Schedules
@@ -477,13 +493,13 @@ export default function App() {
       }
     });
     const unsubN = subscribeToNurseSchedules((cloudSchedules) => {
-      if (Array.isArray(cloudSchedules)) {
-        setNurseSchedules(cloudSchedules);
+      if (Array.isArray(cloudSchedules) && cloudSchedules.length > 0) {
+        setNurseSchedules((prevLocal) => mergeNurseSchedules(prevLocal, cloudSchedules));
       }
     });
     const unsubD = subscribeToDoctorSchedules((cloudDocs) => {
-      if (Array.isArray(cloudDocs)) {
-        setDoctorSchedules(cloudDocs);
+      if (Array.isArray(cloudDocs) && cloudDocs.length > 0) {
+        setDoctorSchedules((prevLocal) => mergeDoctorSchedules(prevLocal, cloudDocs));
       }
     });
     return () => {
@@ -584,6 +600,13 @@ export default function App() {
       otherShift
     );
 
+    const matrixDocs = resolveScheduledDoctorsFromMatrix(
+      doctorSchedules,
+      activeIso,
+      normalizedShift,
+      masterDoctors
+    );
+
     setLoggedInUser({
       ...userData,
       shift: normalizedShift,
@@ -595,6 +618,8 @@ export default function App() {
       date: isCustomDate ? prev.date : getCurrentIndonesianFullDate(),
       shift: normalizedShift,
       shiftHours: resolvedShiftHours,
+      dokterDpjp: matrixDocs.primaryDpjp || prev.dokterDpjp,
+      dokterJaga: matrixDocs.primaryJaga || prev.dokterJaga,
       pjShift:
         matrixPj?.name ||
         matchingShiftPj?.name ||
@@ -644,11 +669,19 @@ export default function App() {
       activeIso,
       nextShift === 'Pagi' ? 'Siang' : 'Pagi'
     );
+    const matrixDocs = resolveScheduledDoctorsFromMatrix(
+      doctorSchedules,
+      activeIso,
+      nextShift,
+      masterDoctors
+    );
 
     setShiftInfo((prev) => ({
       ...prev,
       shift: nextShift,
       shiftHours: nextShiftHours,
+      dokterDpjp: matrixDocs.primaryDpjp || prev.dokterDpjp,
+      dokterJaga: matrixDocs.primaryJaga || prev.dokterJaga,
       pjShift: matrixPj?.name || prev.pjShift,
       pjShiftBerikutnya: matrixNextPj?.name || prev.pjShiftBerikutnya
     }));
@@ -682,9 +715,17 @@ export default function App() {
       nextIsoDate,
       activeShift === 'Pagi' ? 'Siang' : 'Pagi'
     );
+    const matrixDocs = resolveScheduledDoctorsFromMatrix(
+      doctorSchedules,
+      nextIsoDate,
+      activeShift,
+      masterDoctors
+    );
     setShiftInfo((prev) => ({
       ...prev,
       date: formatted,
+      dokterDpjp: matrixDocs.primaryDpjp || prev.dokterDpjp,
+      dokterJaga: matrixDocs.primaryJaga || prev.dokterJaga,
       pjShift: matrixPj?.name || prev.pjShift,
       pjShiftBerikutnya: matrixNextPj?.name || prev.pjShiftBerikutnya
     }));
@@ -746,6 +787,34 @@ export default function App() {
     const timerId = window.setInterval(syncLiveDate, 10000);
     return () => window.clearInterval(timerId);
   }, [isCustomDate]);
+
+  // Synchronize shiftInfo.dokterDpjp & dokterJaga with Monthly Doctor Matrix whenever schedule or date/shift changes
+  useEffect(() => {
+    const activeIso = isCustomDate
+      ? indonesianDateLabelToIso(shiftInfo.date) || getCurrentIsoDateWib()
+      : getCurrentIsoDateWib();
+    const activeShift: 'Pagi' | 'Siang' = shiftInfo.shift === 'Siang' ? 'Siang' : 'Pagi';
+    const matrixDocs = resolveScheduledDoctorsFromMatrix(
+      doctorSchedules,
+      activeIso,
+      activeShift,
+      masterDoctors
+    );
+    if (matrixDocs.primaryDpjp || matrixDocs.primaryJaga) {
+      setShiftInfo((prev) => {
+        const nextDpjp = matrixDocs.primaryDpjp || prev.dokterDpjp;
+        const nextJaga = matrixDocs.primaryJaga || prev.dokterJaga;
+        if (nextDpjp === prev.dokterDpjp && nextJaga === prev.dokterJaga) {
+          return prev;
+        }
+        return {
+          ...prev,
+          dokterDpjp: nextDpjp,
+          dokterJaga: nextJaga
+        };
+      });
+    }
+  }, [doctorSchedules, shiftInfo.date, shiftInfo.shift, isCustomDate, masterDoctors]);
 
   const isDateCustomFromToday =
     isCustomDate && indonesianDateLabelToIso(shiftInfo.date) !== getCurrentIsoDateWib();
